@@ -3,11 +3,6 @@
 # Excel i tabellformat eller plottas som ytor.
 # Indata är marknadsnoterade swapräntor.
 
-# Se exempel från PROMEMORIA 2013-12-01 [FI Dnr 13-11409].
-# Programmerad av Christian Savemark (maj 2019)
-# Ändringar: Namn (datum)
-# Ändringar består i:
-
 discountFactors <- function(t = length(part), part) {
   i <- 2
   df <- numeric(t)
@@ -229,12 +224,6 @@ scenarioGenerator_2 <- function(par_t, start.year, T, stress = NULL, UFR = 0.042
   return(list("Terminsränta viktad" = M, "Diskonteringsfaktor" = N, "Nollkupongränta" = K))
 }
 
-# Validera Excel-snurran
-#par_t <- (1/100)*c(-0.095, -0.1, -0.103, -0.083, -0.045, 0.005, 0.065, 0.125, 0.185, 0.243, NA, 0.348, NA, NA, 0.465, NA, NA, NA, NA, 0.578)
-#irs <- interestRateSwap(par_t)
-#wirs <- weightedInterestSwap(par_t, T = 100)
-#print(wirs)
-#plot(wirs[, "Nollkupongränta"], xlab = "Loptid", ylab = "Nollkupongränta", type = "l", main = "Diskonteringsräntekurva 2019-09-30")
 # Exempel 1
 # Detta exempel användes för att validera koden mot PROMEMORIA 2013-12-01 [FI Dnr 13-11409]
 # par_t är marknadsnoteringarna. Observera att man måste inkludera NAs.
