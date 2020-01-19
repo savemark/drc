@@ -1,7 +1,7 @@
-# Detta program berÃ¤knar diskonteringsrÃ¤ntekurvor bÃ¥de frÃ¥n idag och framÃ¥t i tiden,
-# fÃ¶r anvÃ¤ndning till exempelvis framtida balansrÃ¤kningar. Kurvorna kan enkelt skrivas till 
+# Detta program beräknar diskonteringsräntekurvor både från idag och framåt i tiden,
+# för användning till exempelvis framtida balansräkningar. Kurvorna kan enkelt skrivas till 
 # Excel i tabellformat eller plottas som ytor.
-# Indata Ã¤r marknadsnoterade swaprÃ¤ntor.
+# Indata är marknadsnoterade swapräntor.
 
 discountFactors <- function(t = length(part), part) {
   i <- 2
@@ -28,16 +28,16 @@ forwardRates <- function(t, df) {
 vforwardRates <- Vectorize(forwardRates, vectorize.args = "t")
 
 weight <- function(t, T1 = 10, T2 = T1+10) {
-  # T1 lÃ¤ngsta Loptiden
-  # T2 tidpunkten fÃ¶r konvergens
+  # T1 längsta Loptiden
+  # T2 tidpunkten för konvergens
   ifelse(t<=T1, 0, 
          ifelse(t>T1 & t<=T2, (t-T1)/(T2-T1+1), 1))
 }
 
 weightedForwardRate <- function(fwdr, w, T, UFR = 0.042) {
-  # fwdr vektor av terminsrÃ¤ntor
+  # fwdr vektor av terminsräntor
   # w viktningsfunktion
-  # T lÃ¤ngsta Loptid
+  # T längsta Loptid
   res <- numeric(T)
   for (t in seq_len(T)) {
     res[t] <- ifelse(t<=length(fwdr), (1-w(t))*fwdr[t]+w(t)*UFR, UFR)
@@ -46,9 +46,9 @@ weightedForwardRate <- function(fwdr, w, T, UFR = 0.042) {
 }
 
 logLinearDFRelationshipClosure <- function(t, df) {
-  # log-linjÃ¤ra relationer mellan diskonteringsfaktorer.
-  # t Ã¤r en 3-dimensionell vektor (t1, t2, t3) med t1 < t2 < t3.
-  # denna funktion returnerar en funktion (det Ã¤r en funktional dvs.)
+  # log-linjära relationer mellan diskonteringsfaktorer.
+  # t är en 3-dimensionell vektor (t1, t2, t3) med t1 < t2 < t3.
+  # denna funktion returnerar en funktion (det är en funktional dvs.)
   d <- t[3]-t[1]
   f <- function(x) {
     exp(((d-(t[2]-t[1]))/d)*log(df[t[1]])+((d-(t[3]-t[2]))/d)*log(1/((1+x)^t[3])))
@@ -69,7 +69,7 @@ multiplyFunctions <- function(x, l) {
 }
 
 objectiveFunction <- function(x, s, t, part, df) {
-  # MÃ¥lfunktion som ska minimeras.
+  # Målfunktion som ska minimeras.
   i <- (s+1):(t-1)
   logLinearDFRelationships <- lapply(i, function (x) logLinearDFRelationshipClosure(c(s, x, t), df))
   res <- (part[t]*(sum(df[1:s])+addFunctions(x, logLinearDFRelationships)+1/((1+x)^t))-(1-1/((1+x)^t)))^2
@@ -124,27 +124,27 @@ zeroCouponRate <- function(t, df) {
 }
 
 weightedInterestSwap <- function(par_t, T, credit.adj = -0.0035, allow.negative.rates = FALSE, ...) {
-  # LÃ¤ngsta Loptid
-  # par_t marknadsnoteringar fÃ¶r swaprÃ¤ntor
+  # Längsta Loptid
+  # par_t marknadsnoteringar för swapräntor
   wfwdr <- weightedForwardRate(interestRateSwap(par_t, credit.adj = credit.adj, allow.negative.rates = allow.negative.rates)[ , 6], w = weight, T = T, ...)
   wdf <- discountFactors_2(T, wfwdr)
   wzcr <- zeroCouponRates(df = wdf)
-  datafr <- data.frame("LÃ¶ptid" = seq(wfwdr), "TerminsrÃ¤nta viktad" = wfwdr, "Diskonteringsfaktor" = wdf, "NollkupongrÃ¤nta" = wzcr)
+  datafr <- data.frame("Löptid" = seq(wfwdr), "Terminsränta viktad" = wfwdr, "Diskonteringsfaktor" = wdf, "Nollkupongränta" = wzcr)
   return(datafr)
 }
 
 scenarioGenerator <- function(par_t, start.year, T, UFR = 0.042, ...) {
-  # Denna funktion diskonterar alla framtida kassaflÃ¶den till fÃ¶rsta Ã¥ret,
-  # Ã¤ven fÃ¶r framtida kontrakt. BÃ¶r endast anvÃ¤ndas i sÃ¤llsynta fall?
-  # Output Ã¤r en lista innehÃ¥llandes tre matriser.
-  # par_t Ã¤r marknadsnoteringar fÃ¶r rÃ¤nteswapavtal.
-  # start.year Ã¤r Ã¥r man bÃ¶rjar.
-  # T Ã¤r antal Ã¥r framÃ¥t i tiden.
+  # Denna funktion diskonterar alla framtida kassaflöden till första året,
+  # även för framtida kontrakt. Bör endast användas i sällsynta fall?
+  # Output är en lista innehållandes tre matriser.
+  # par_t är marknadsnoteringar för ränteswapavtal.
+  # start.year är år man börjar.
+  # T är antal år framåt i tiden.
   # UFR = ultimate forward rate
   vector.is.empty <- function(x) return(length(x) == 0)
-  M <- matrix(NA, T, T) # TerminsrÃ¤ntor
+  M <- matrix(NA, T, T) # Terminsräntor
   N <- matrix(NA, T, T) # Diskonteringsfaktorer
-  K <- matrix(NA, T, T) # NollkupongrÃ¤ntor
+  K <- matrix(NA, T, T) # Nollkupongräntor
   wfwdr <- weightedInterestSwap(par_t, T = T, ...)[ , 2]
   M[1, ] <- wfwdr
   row <- 2
@@ -172,24 +172,24 @@ scenarioGenerator <- function(par_t, start.year, T, UFR = 0.042, ...) {
   }
   rownames(M) <- rownames(N) <- rownames(K) <- start.year:(start.year+T-1)
   colnames(M) <- colnames(N) <- colnames(K) <- seq(T)
-  return(list("TerminsrÃ¤nta viktad" = M, "Diskonteringsfaktor" = N, "NollkupongrÃ¤nta" = K))
+  return(list("Terminsränta viktad" = M, "Diskonteringsfaktor" = N, "Nollkupongränta" = K))
 }
 
 scenarioGenerator_2 <- function(par_t, start.year, T, stress = NULL, UFR = 0.042, ...) {
-  # Denna funktion diskonterar bara till varje nytt Ã¥r.
-  # (anvÃ¤nds t.ex. fÃ¶r diskontering vid framrÃ¤kning av framtida balansrÃ¤kningar)
-  # Output Ã¤r en lista innehÃ¥llandes tre matriser.
-  # par_t Ã¤r marknadsnoteringar fÃ¶r rÃ¤nteswapavtal.
-  # start.year Ã¤r Ã¥r man bÃ¶rjar.
-  # T Ã¤r antal Ã¥r framÃ¥t i tiden.
-  # stress Ã¤r en stressvektor vars lÃ¤ngd mÃ¥ste vara lika med T.
+  # Denna funktion diskonterar bara till varje nytt år.
+  # (används t.ex. för diskontering vid framräkning av framtida balansräkningar)
+  # Output är en lista innehållandes tre matriser.
+  # par_t är marknadsnoteringar för ränteswapavtal.
+  # start.year är år man börjar.
+  # T är antal år framåt i tiden.
+  # stress är en stressvektor vars längd måste vara lika med T.
   # UFR = ultimate forward rate
   if (!is.null(stress) & length(stress) != T)
     stop("Stress vector is not the same length as T")
   vector.is.empty <- function(x) return(length(x) == 0)
-  M <- matrix(NA, T, T) # TerminsrÃ¤ntor
+  M <- matrix(NA, T, T) # Terminsräntor
   N <- matrix(NA, T, T) # Diskonteringsfaktorer
-  K <- matrix(NA, T, T) # NollkupongrÃ¤ntor
+  K <- matrix(NA, T, T) # Nollkupongräntor
   wfwdr <- weightedInterestSwap(par_t, T = T, ...)[ , 2]
   M[1, ] <- wfwdr
   row <- 2
@@ -206,7 +206,7 @@ scenarioGenerator_2 <- function(par_t, start.year, T, stress = NULL, UFR = 0.042
   K[, 1] <- M[, 1]
   for (i in 1:T) {
     for (j in 2:T) {
-        K[i, j] <- ((1+M[i, j])*(1+K[i, j-1])^(j-1))^(1/j)-1
+      K[i, j] <- ((1+M[i, j])*(1+K[i, j-1])^(j-1))^(1/j)-1
     }
   }
   if (!is.null(stress)) {
@@ -221,78 +221,78 @@ scenarioGenerator_2 <- function(par_t, start.year, T, stress = NULL, UFR = 0.042
   }
   rownames(M) <- rownames(N) <- rownames(K) <- start.year:(start.year+T-1)
   colnames(M) <- colnames(N) <- colnames(K) <- seq(T)
-  return(list("TerminsrÃ¤nta viktad" = M, "Diskonteringsfaktor" = N, "NollkupongrÃ¤nta" = K))
+  return(list("Terminsränta viktad" = M, "Diskonteringsfaktor" = N, "Nollkupongränta" = K))
 }
 
 # Exempel 1
-# Detta exempel anvÃ¤ndes fÃ¶r att validera koden mot PROMEMORIA 2013-12-01 [FI Dnr 13-11409]
-# par_t Ã¤r marknadsnoteringarna. Observera att man mÃ¥ste inkludera NAs.
+# Detta exempel användes för att validera koden mot PROMEMORIA 2013-12-01 [FI Dnr 13-11409]
+# par_t är marknadsnoteringarna. Observera att man måste inkludera NAs.
 # par_t <- (1/100)*c(1.3200, 1.5275, 1.77, 2.008, 2.208, 2.3630, 2.49, 2.5930, 2.678, 2.745, NA, 2.8450, NA, NA, 2.9400, NA, NA, NA, NA, 3.04)
-# cat("\n", "rÃ¤ntekurva swappar", "2013-06-30", "\n")
+# cat("\n", "räntekurva swappar", "2013-06-30", "\n")
 # irs <- interestRateSwap(par_t)
 # print(irs)
-# cat("\n", "DiskonteringsrÃ¤ntekurva", "2013-06-30", "\n")
+# cat("\n", "Diskonteringsräntekurva", "2013-06-30", "\n")
 # wirs <- weightedInterestSwap(par_t, T = 100)
 # print(wirs)
-# plot(wirs[, "NollkupongrÃ¤nta"], xlab = "Loptid", ylab = "NollkupongrÃ¤nta", type = "l", main = "DiskonteringsrÃ¤ntekurva 2013-06-30")
+# plot(wirs[, "Nollkupongränta"], xlab = "Loptid", ylab = "Nollkupongränta", type = "l", main = "Diskonteringsräntekurva 2013-06-30")
 
 # Exempel 2-1
-# Detta exempel anvÃ¤ndes fÃ¶r att validera koden mot en publicerad rÃ¤ntekurva, framrÃ¤knad
+# Detta exempel användes för att validera koden mot en publicerad räntekurva, framräknad
 # i en redan existerande Excel-snurra.
 # par_t_2 <- (1/100)*c(-0.026, 0.088, 0.204, 0.325, 0.452, 0.574, 0.692, 0.802, 0.903, 0.997, NA, 1.17, NA, NA, 1.335, NA, NA, NA, NA, 1.488)
-# cat("\n", "rÃ¤ntekurva swappar", "2019-02-28", "\n")
+# cat("\n", "räntekurva swappar", "2019-02-28", "\n")
 # irs_2 <- interestRateSwap(par_t_2)
 # print(irs_2)
-# cat("\n", "DiskonteringsrÃ¤ntekurva", "2019-02-28", "\n")
+# cat("\n", "Diskonteringsräntekurva", "2019-02-28", "\n")
 # wirs_2 <- weightedInterestSwap(par_t_2, T = 100)
 # print(wirs_2)
-# plot(wirs_2[, "NollkupongrÃ¤nta"], xlab = "Loptid", ylab = "NollkupongrÃ¤nta", type = "l", main = "DiskonteringsrÃ¤ntekurva 2019-02-28")
+# plot(wirs_2[, "Nollkupongränta"], xlab = "Loptid", ylab = "Nollkupongränta", type = "l", main = "Diskonteringsräntekurva 2019-02-28")
 
 # Exempel 2-2
-# Detta exempel anvÃ¤ndes fÃ¶r att validera koden mot en publicerad rÃ¤ntekurva, framrÃ¤knad
+# Detta exempel användes för att validera koden mot en publicerad räntekurva, framräknad
 # i en redan existerande Excel-snurra.
 # par_t_2_2 <- (1/100)*c(-0.021, 0.025, 0.085, 0.148, 0.235, 0.323, 0.415, 0.505, 0.588, 0.672, NA, 0.83, NA, NA, 0.988, NA, NA, NA, NA, 1.144)
-# cat("\n", "rÃ¤ntekurva swappar", "2019-05-31", "\n")
+# cat("\n", "räntekurva swappar", "2019-05-31", "\n")
 # irs_2_2 <- interestRateSwap(par_t_2_2)
 # print(irs_2_2)
-# cat("\n", "DiskonteringsrÃ¤ntekurva", "2019-05-31", "\n")
+# cat("\n", "Diskonteringsräntekurva", "2019-05-31", "\n")
 # wirs_2_2 <- weightedInterestSwap(par_t_2_2, T = 100)
 # print(wirs_2_2)
-# plot(wirs_2_2[, "NollkupongrÃ¤nta"], xlab = "Loptid", ylab = "NollkupongrÃ¤nta", type = "l", main = "DiskonteringsrÃ¤ntekurva 2019-05-31")
+# plot(wirs_2_2[, "Nollkupongränta"], xlab = "Loptid", ylab = "Nollkupongränta", type = "l", main = "Diskonteringsräntekurva 2019-05-31")
 
 # Exempel 3
-# Detta exempel anvÃ¤ndes i Eiopas stresstest fÃ¶r tjÃ¤nstepensionskassor Ã¥r 2019.
-# Metoden skiljer sig frÃ¥n Swith-Wilson (den svenska Ã¤r enklare).
+# Detta exempel användes i Eiopas stresstest för tjänstepensionskassor år 2019.
+# Metoden skiljer sig från Swith-Wilson (den svenska är enklare).
 # par_t_3 <- (1/100)*c(-0.085, 0.046, 0.193, 0.34, 0.494, 0.646, 0.788, 0.914, 1.022, 1.116, NA, 1.278, NA, NA, 1.446, NA, NA, NA, NA, 1.591)
-# cat("\n", "rÃ¤ntekurva swappar", "2018-12-28", "\n")
+# cat("\n", "räntekurva swappar", "2018-12-28", "\n")
 # irs_3 <- interestRateSwap(par_t_3)
 # print(irs_3)
-# cat("\n", "DiskonteringsrÃ¤ntekurva", "2018-12-28", "\n")
+# cat("\n", "Diskonteringsräntekurva", "2018-12-28", "\n")
 # wirs_3 <- weightedInterestSwap(par_t_3, T = 100, allow.negative.rates = FALSE)
 # print(wirs_3)
-# plot(wirs_3[, "NollkupongrÃ¤nta"], xlab = "Loptid", ylab = "NollkupongrÃ¤nta", type = "l", main = "DiskonteringsrÃ¤ntekurva 2018-12-28")    
+# plot(wirs_3[, "Nollkupongränta"], xlab = "Loptid", ylab = "Nollkupongränta", type = "l", main = "Diskonteringsräntekurva 2018-12-28")    
 
-# DiskonteringsrÃ¤nteytor, med ett stressat scenario.
-# Detta exempel anvÃ¤ndes i Eiopas stresstest fÃ¶r tjÃ¤nstepensionskassor Ã¥r 2019.
-# Stressvektorn bÃ¶r i framtida scenarion definieras via funktion, istÃ¤llet fÃ¶r som en konstant vektor!
+# Diskonteringsränteytor, med ett stressat scenario.
+# Detta exempel användes i Eiopas stresstest för tjänstepensionskassor år 2019.
+# Stressvektorn bör i framtida scenarion definieras via funktion, istället för som en konstant vektor!
 # scenario_base <- scenarioGenerator_2(par_t_3, 2019, 100, allow.negative.rates = TRUE)
 # stress <- (1/100)*c(0.40, 0.55, 0.70, 0.84, 1.01, 0.94, 0.88, 0.81, 0.74, 0.68, 0.65, 0.62, 0.60, 0.57, 0.55, 0.52, 0.50, 0.48, 0.46, 0.44, rep(0.44, times = 80))
 # scenario_adverse <- scenarioGenerator_2(par_t_3, 2019, 100, stress = stress, allow.negative.rates = TRUE)
 
-# Plottar fÃ¶r validering
-# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_base$'TerminsrÃ¤nta viktad', main = "Basscenario IORP ST 2019", xlab = "Ã¥r", ylab = "Loptid", zlab = "TerminsrÃ¤nta viktad", ticktype = "detailed", theta = -30, phi = 30)
-# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_base$'Diskonteringsfaktor', main = "Basscenario IORP ST 2019", xlab = "Ã¥r", ylab = "Loptid", zlab = "Diskonteringsfaktor", ticktype = "detailed", theta = 30, phi = 30)
-# persp(y = 2019:(2019+100-1), x = 1:100, z = t(scenario_base$'NollkupongrÃ¤nta'), main = "Basscenario IORP ST 2019", ylab = "Ã¥r", xlab = "Loptid", zlab = "NollkupongrÃ¤nta", ticktype = "detailed", theta = 30, phi = 30)
-# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_adverse$'TerminsrÃ¤nta viktad', main = "Stressat scenario IORP ST 2019", xlab = "Ã¥r", ylab = "Loptid", zlab = "TerminsrÃ¤nta viktad", ticktype = "detailed", theta = -30, phi = 30)
-# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_adverse$'Diskonteringsfaktor', main = "Stressat scenario IORP ST 2019", xlab = "Ã¥r", ylab = "Loptid", zlab = "Diskonteringsfaktor", ticktype = "detailed", theta = 30, phi = 30)
-# persp(y = 2019:(2019+100-1), x = 1:100, z = t(scenario_adverse$'NollkupongrÃ¤nta'), main = "Stressat scenario IORP ST 2019", ylab = "Ã¥r", xlab = "Loptid", zlab = "NollkupongrÃ¤nta", ticktype = "detailed", theta = 30, phi = 30)
+# Plottar för validering
+# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_base$'Terminsränta viktad', main = "Basscenario IORP ST 2019", xlab = "år", ylab = "Loptid", zlab = "Terminsränta viktad", ticktype = "detailed", theta = -30, phi = 30)
+# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_base$'Diskonteringsfaktor', main = "Basscenario IORP ST 2019", xlab = "år", ylab = "Loptid", zlab = "Diskonteringsfaktor", ticktype = "detailed", theta = 30, phi = 30)
+# persp(y = 2019:(2019+100-1), x = 1:100, z = t(scenario_base$'Nollkupongränta'), main = "Basscenario IORP ST 2019", ylab = "år", xlab = "Loptid", zlab = "Nollkupongränta", ticktype = "detailed", theta = 30, phi = 30)
+# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_adverse$'Terminsränta viktad', main = "Stressat scenario IORP ST 2019", xlab = "år", ylab = "Loptid", zlab = "Terminsränta viktad", ticktype = "detailed", theta = -30, phi = 30)
+# persp(x = 2019:(2019+100-1), y = 1:100, z = scenario_adverse$'Diskonteringsfaktor', main = "Stressat scenario IORP ST 2019", xlab = "år", ylab = "Loptid", zlab = "Diskonteringsfaktor", ticktype = "detailed", theta = 30, phi = 30)
+# persp(y = 2019:(2019+100-1), x = 1:100, z = t(scenario_adverse$'Nollkupongränta'), main = "Stressat scenario IORP ST 2019", ylab = "år", xlab = "Loptid", zlab = "Nollkupongränta", ticktype = "detailed", theta = 30, phi = 30)
 
 # Skriv till Excel
-# Scenarion fÃ¶r stresstest av IORP:ar 2019
+# Scenarion för stresstest av IORP:ar 2019
 # "iht" = Input Helper Tool
-# scenario_baseline_iht <- scenario_base$'NollkupongrÃ¤nta'
+# scenario_baseline_iht <- scenario_base$'Nollkupongränta'
 # scenario_baseline_iht[scenario_baseline_iht < 0] <- 0.000
-# scenario_adverse_iht <- scenario_adverse$'NollkupongrÃ¤nta'
+# scenario_adverse_iht <- scenario_adverse$'Nollkupongränta'
 # scenario_adverse_iht[scenario_adverse_iht < 0] <- 0.000
 # scenario_baseline_iht <- data.frame(scenario_baseline_iht)
 # names(scenario_baseline_iht) <- 1:100
