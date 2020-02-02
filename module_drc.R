@@ -1,6 +1,7 @@
 # Module user interface
-weightedInterestRateSwapUI <- function(id) {
+weightedInterestRateSwapUI <- function(id, selected = list()) {
   ns <- NS(id)
+  stress_type <- match.arg(selected$stress_type, c("none", "absolute_up", "absolute_down", "relative_up", "relative_down"))
   tagList(
     fluidRow(
       column(12,
@@ -20,10 +21,10 @@ weightedInterestRateSwapUI <- function(id) {
              numericInput(ns("ufr"), "Ultimate forward rate", 0.042, step = 1/10000)
       ),
       column(3,
-             checkboxInput(ns("allow_negative_rates"), "Tillåt negativa kreditriskjusterade swapräntor", value = TRUE)
+             checkboxInput(ns("allow_negative_rates"), "Till\u00E5t negativa kreditriskjusterade swapr\u00E4ntor", value = TRUE)
       ),
       column(3,
-             sliderInput(ns("maximum_maturity"), "Längsta löptid", min = 1, max = 150, value = 120)
+             sliderInput(ns("maximum_maturity"), "L\u00E4ngsta l\u00F6ptid", min = 1, max = 150, value = 120)
       )
     ),
     fluidRow(
@@ -31,15 +32,16 @@ weightedInterestRateSwapUI <- function(id) {
              radioButtons(ns("stress_type"), 
                           label = "Stresstyp:",
                           choiceNames = c("Ingen",
-                                          "Absolut räntehöjningschock",
-                                          "Absolut räntesänkningschock",
-                                          "Relativ räntehöjningschock",
-                                          "Relativ räntesänkningschock"),
+                                          "Absolut r\u00E4nteh\u00F6jningschock",
+                                          "Absolut r\u00E4ntes\u00E4nkningschock",
+                                          "Relativ r\u00E4nteh\u00F6jningschock",
+                                          "Relativ r\u00E4ntes\u00E4nkningschock"),
                           choiceValues = c("none",
                                            "absolute_up",
                                            "absolute_down",
                                            "relative_up",
                                            "relative_down"),
+                          selected = stress_type,
                           inline = TRUE
              )
       )
@@ -57,7 +59,7 @@ weightedInterestRateSwapServer <- function(input, output, session, swaprate) {
   
   # Datasets
   datasetWeightedInterestRateSwap <- reactive({
-    suppressWarnings(par_t <- as.numeric(trimws(unlist(strsplit(swaprate, ",")))))
+    suppressWarnings(par_t <- as.numeric(trimws(unlist(strsplit(swaprate(), ",")))))
     wirs <- weightedInterestSwap(par_t, 
                                  T = input$maximum_maturity, 
                                  credit.adj = input$credit_adjustment, 
@@ -77,7 +79,7 @@ weightedInterestRateSwapServer <- function(input, output, session, swaprate) {
   # Plots
   output$wdrcplot <- renderPlot({
     par(bg = NA)
-    suppressWarnings(par_t <- as.numeric(trimws(unlist(strsplit(swaprate, ",")))))
+    suppressWarnings(par_t <- as.numeric(trimws(unlist(strsplit(swaprate(), ",")))))
     irs <- interestRateSwap(par_t)
     wirs <- weightedInterestSwap(par_t, 
                                  T = input$maximum_maturity, 
@@ -86,7 +88,7 @@ weightedInterestRateSwapServer <- function(input, output, session, swaprate) {
                                  UFR = input$ufr,
                                  stress = stress,
                                  args.stress = list(type = input$stress_type))
-    plot(wirs[, 4], xlab = "Löptid", ylab = "Nollkupongränta", type = "p", main = "Diskonteringsräntekurva")
+    plot(wirs[, 4], xlab = "L\u00F6ptid", ylab = "Nollkupongr\u00E4nta", type = "p", main = "Diskonteringsr\u00E4ntekurva")
     lines(wirs[, 4])
     grid(lty = "dotted")
   })
