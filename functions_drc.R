@@ -109,57 +109,65 @@ stress <- function(x,
   # type teckensträng, exempelvis "absolute_up"
   type <- match.arg(type)
   if (is.null(t)) t <- c(1:10, 12, 15, 20)
-  none = function() {
+  none = function(x) {
     return(x)
   }
-  absolute_up = function() {
+  absolute_up = function(x) {
     if (is.null(y)) y <- (1/10000)*c(50, 53, 56, 60, 62, 64, 65, 66, 67, 68, 69, 70, 70)
     f <- approxfun(t, y, rule = 2)
     x[which(x>0)] <- x[which(x>0)]+f(which(x>0))
     return(x)
   }
-  absolute_down = function() {
+  absolute_down = function(x) {
     if (is.null(y)) y <- (1/10000)*c(50, 53, 56, 60, 62, 64, 65, 66, 67, 68, 69, 70, 70)
     f <- approxfun(t, y, rule = 2)
-    x[which(x>0)] <- x[which(x>0)]-f(which(x>0))
+    index_positive <- which(x>0)
+    x_cut <- x[index_positive]
+    x_cut_stressed <- x_cut-f(index_positive)
+    x_cut_stressed[x_cut_stressed<0] <- 0
+    x[index_positive] <- x_cut_stressed
     return(x)
   }
-  relative_up = function() {
+  relative_up = function(x) {
     if (is.null(y)) y <- (1/100)*c(41, 38, 36, 33, 32, 30, 28, 27, 26, 25, 23, 22, 20)
     f <- approxfun(t, y, rule = 2)
     x[which(x>0)] <- x[which(x>0)]*(1+f(which(x>0)))
     return(x)
   }
-  relative_down = function() {
+  relative_down = function(x) {
     if (is.null(y)) y <- (1/100)*c(41, 38, 36, 33, 32, 30, 28, 27, 26, 25, 23, 22, 20)
     f <- approxfun(t, y, rule = 2)
     x[which(x>0)] <- x[which(x>0)]*(1-f(which(x>0)))
     return(x)
   }
   switch(type,
-         none = none(),
-         absolute_up = absolute_up(),
-         absolute_down = absolute_down(),
-         relative_up = relative_up(),
-         relative_down = relative_down()
+         none = none(x),
+         absolute_up = absolute_up(x),
+         absolute_down = absolute_down(x),
+         relative_up = relative_up(x),
+         relative_down = relative_down(x)
   )
 }
 
 interestRateSwap <- function(par_t, credit.adj = -0.0035, allow.negative.rates = TRUE, stress = NULL, args.stress = list()) {
   par_t.adj <- par_t + credit.adj
-  if (!is.null(stress)) par_t.adj <- do.call(stress, c(list(x = par_t.adj), args.stress))
   if (!allow.negative.rates) par_t.adj[par_t.adj < 0] <- 0
-  df <- discountFactors(part = par_t.adj)
+  if (!is.null(stress)) {
+    par_t.adj.stressed <- do.call(stress, c(list(x = par_t.adj), args.stress))
+  } else {
+    par_t.adj.stressed <- par_t.adj
+  }
+  df <- discountFactors(part = par_t.adj.stressed)
   zcr <- zeroCouponRates(df = df)
-  fwdr <- vforwardRates(1:length(par_t.adj), df)
+  fwdr <- vforwardRates(1:length(par_t), df)
   while (any(is.na(df))) {
     naindex <- min(which(is.na(df))) # Smallest index of NAs in df
     t_1 <- naindex-1 # Largest non-NA index before NA in df
-    index <- which(!is.na(par_t.adj)) # Indices that are not NA in par_t
+    index <- which(!is.na(par_t.adj.stressed)) # Indices that are not NA in par_t
     t_3 <- index[min(which(index>naindex))] # The smallest non-NA index that is larger than naindex
     j <- naindex:(t_3-1) # NA indices in DF
     logLinearDFRelationships <- lapply(j, function (x) logLinearDFRelationshipClosure(c(t_1, x, t_3), df))
-    zcr[t_3] <- optim(par = 0.0000, fn = objectiveFunction, s = t_1, t = t_3, part = par_t.adj, df = df, method = "Brent", lower = -0.75, upper = 0.75)$par
+    zcr[t_3] <- optim(par = 0.001, fn = objectiveFunction, s = t_1, t = t_3, part = par_t.adj.stressed, df = df, method = "Brent", lower = -0.5, upper = 0.5)$par
     df[t_3] <- 1/(1+zcr[t_3])^(t_3)
     m <- 1
     for (k in naindex:(t_3-1)) {
@@ -168,8 +176,21 @@ interestRateSwap <- function(par_t, credit.adj = -0.0035, allow.negative.rates =
     }
     fwdr[naindex:t_3] <- ((df[t_1]/df[t_3])^(1/(t_3-t_1)))-1
   }
-  zcr <- zeroCouponRates(1:length(par_t.adj), df)
-  datafr <- data.frame("L\u00F6ptid" = 1:length(par_t), "Marknadsnoteringar" = par_t, "Marknadsnoteringar.kred.just." = par_t.adj, "Terminsr\u00E4nta swap" = fwdr, "Diskonteringsfaktor" = df, "Nollkupongr\u00E4nta" = zcr)
+  zcr <- zeroCouponRates(1:length(par_t.adj.stressed), df)
+  datafr <- data.frame(1:length(par_t), 
+                       par_t, 
+                       par_t.adj, 
+                       par_t.adj.stressed,
+                       fwdr, 
+                       df, 
+                       zcr)
+  names(datafr) <- c("L\u00F6ptid", 
+                     "Marknadsnot.", 
+                     "Marknadsnot. kred. just.", 
+                     "Marknadsnot. kred. just. stressade",
+                     "Terminsr\u00E4nta swap", 
+                     "Diskonteringsfaktor", 
+                     "Nollkupongr\u00E4nta")
   return(datafr)
 }
 
@@ -180,20 +201,47 @@ weightedInterestSwap <- function(par_t,
                                  UFR = 0.042,
                                  stress = NULL, 
                                  args.stress = list()) {
-  # Längsta Loptid
+  # T Längsta Loptid
   # par_t marknadsnoteringar för swapräntor
-  fwdr <- interestRateSwap(par_t, 
-                           credit.adj = credit.adj, 
-                           allow.negative.rates = allow.negative.rates, 
-                           stress = stress, 
-                           args.stress = args.stress)[ , 4]
+  par_t_long <- rep_len(NA, length.out = T)
+  par_t_long.adj <- rep_len(NA, length.out = T)
+  par_t_long.adj.stressed <- rep_len(NA, length.out = T)
+  fwdr_long <- rep_len(NA, length.out = T)
+  irs <- interestRateSwap(par_t, 
+                          credit.adj = credit.adj, 
+                          allow.negative.rates = allow.negative.rates, 
+                          stress = stress, 
+                          args.stress = args.stress)
+  par_t.adj <- irs[ , 3]
+  par_t.adj.stressed <- irs[ , 4]
+  fwdr <- irs[ , 5]
   wfwdr <- weightedForwardRate(fwdr, 
                                w = weight, 
                                T = T, 
                                UFR = UFR)
   wdf <- discountFactors_2(T, wfwdr)
   wzcr <- zeroCouponRates(df = wdf)
-  datafr <- data.frame("L\u00F6ptid" = seq(wfwdr), "Terminsr\u00E4nta viktad" = wfwdr, "Diskonteringsfaktor" = wdf, "Nollkupongr\u00E4nta" = wzcr)
+
+  par_t_long[seq(par_t)] <- par_t
+  par_t_long.adj[seq(par_t.adj)] <- par_t.adj
+  par_t_long.adj.stressed[seq(par_t.adj.stressed)] <- par_t.adj.stressed
+  fwdr_long[seq(fwdr)] <- fwdr
+  datafr <- data.frame(seq(wfwdr), 
+                       par_t_long, 
+                       par_t_long.adj,
+                       par_t_long.adj.stressed,
+                       fwdr_long,
+                       wfwdr, 
+                       wdf, 
+                       wzcr)
+  names(datafr) <- c("L\u00F6ptid", 
+                     "Marknadsnot. ", 
+                     "Marknadsnot. kred. just.",
+                     "Marknadsnot. kred. just. str.",
+                     "Terminsr\u00E4nta",
+                     "Terminsr\u00E4nta viktad", 
+                     "Diskonteringsfaktor", 
+                     "Nollkupongr\u00E4nta")
   return(datafr)
 }
 
