@@ -8,11 +8,6 @@ weightedInterestRateSwapUI <- function(id, selected = list()) {
              plotOutput(ns("wdrcplot"))
       )
     ),
-    fluidRow(      
-      column(2,
-             downloadButton(ns("downloadDatasetWeightedInterestRateSwap"), "Ladda ned")
-      )
-    ),
     fluidRow(
       column(3,
              numericInput(ns("credit_adjustment"), "Kreditriskjustering", -0.0035, step = 1/10000)
@@ -28,7 +23,7 @@ weightedInterestRateSwapUI <- function(id, selected = list()) {
       )
     ),
     fluidRow(
-      column(12,
+      column(9,
              radioButtons(ns("stress_type"), 
                           label = "Stresstyp:",
                           choiceNames = c("Ingen",
@@ -44,6 +39,9 @@ weightedInterestRateSwapUI <- function(id, selected = list()) {
                           selected = stress_type,
                           inline = TRUE
              )
+      ),
+      column(3,
+             downloadButton(ns("downloadDatasetWeightedInterestRateSwap"), "Ladda ned tabell")
       )
     ),
     fluidRow(
@@ -73,7 +71,7 @@ weightedInterestRateSwapServer <- function(input, output, session, swaprate) {
   output$wirs <- DT::renderDT({
     datatable(datasetWeightedInterestRateSwap(), 
               rownames = FALSE,
-              options = list(paging = FALSE, info = FALSE, searching = FALSE)) %>% formatRound(columns = 2:4, digits = 8) %>% formatStyle(columns = 0:6, fontSize = "8pt")
+              options = list(paging = FALSE, info = FALSE, searching = FALSE)) %>% formatRound(columns = 2:8, digits = 8) %>% formatStyle(columns = 1:8, fontSize = "8pt")
   })
   
   # Plots
@@ -88,8 +86,19 @@ weightedInterestRateSwapServer <- function(input, output, session, swaprate) {
                                  UFR = input$ufr,
                                  stress = stress,
                                  args.stress = list(type = input$stress_type))
-    plot(wirs[, 4], xlab = "L\u00F6ptid", ylab = "Nollkupongr\u00E4nta", type = "p", main = "Diskonteringsr\u00E4ntekurva")
-    lines(wirs[, 4])
+    plot(wirs[, 8], xlab = "L\u00F6ptid", ylab = "Nollkupongr\u00E4nta", type = "p", main = "Diskonteringsr\u00E4ntekurva")
+    lines(wirs[, 8])
     grid(lty = "dotted")
   })
+  
+  # Downloads
+  output$downloadDatasetWeightedInterestRateSwap <- downloadHandler(
+    filename = function() {
+      paste("wirs", ".xlsx", sep = "")
+    },
+    content = function(file) {
+      xlsx::write.xlsx(datasetWeightedInterestRateSwap(), file, sheetName = "Nollkupongränta", 
+                       col.names = TRUE, row.names = FALSE, append = FALSE)
+    }
+  )
 }
