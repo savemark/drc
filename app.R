@@ -9,31 +9,31 @@ source("module_drc.R")
 
 # User interface
 ui <- fluidPage(
-  tags$head(
-    tags$style(HTML(
-      "
-      #none-wirs table > thead > tr > th,
-      #none-wirs table > tbody > tr > th,
-      #none-wirs table > tfoot > tr > th,
-      #none-wirs table > thead > tr > td,
-      #none-wirs table > tbody > tr > td,
-      #none-wirs table > tfoot > tr > td {padding:0px;}")
-    )
-  ),
-  tags$head(
-    tags$style(HTML(
-      "
-      #abs_up-wirs table > thead > tr > th,
-      #abs_up-wirs table > tbody > tr > th,
-      #abs_up-wirs table > tfoot > tr > th,
-      #abs_up-wirs table > thead > tr > td,
-      #abs_up-wirs table > tbody > tr > td,
-      #abs_up-wirs table > tfoot > tr > td {padding:0px;}")
-    )
-  ),
+  # tags$head(
+  #   tags$style(HTML(
+  #     "
+  #     #none-wirs table > thead > tr > th,
+  #     #none-wirs table > tbody > tr > th,
+  #     #none-wirs table > tfoot > tr > th,
+  #     #none-wirs table > thead > tr > td,
+  #     #none-wirs table > tbody > tr > td,
+  #     #none-wirs table > tfoot > tr > td {padding:0px;}")
+  #   )
+  # ),
+  # tags$head(
+  #   tags$style(HTML(
+  #     "
+  #     #abs_up-wirs table > thead > tr > th,
+  #     #abs_up-wirs table > tbody > tr > th,
+  #     #abs_up-wirs table > tfoot > tr > th,
+  #     #abs_up-wirs table > thead > tr > td,
+  #     #abs_up-wirs table > tbody > tr > td,
+  #     #abs_up-wirs table > tfoot > tr > td {padding:0px;}")
+  #   )
+  # ),
   theme = shinytheme("simplex"),
   fluidRow(
-    column(8,
+    column(10,
            titlePanel("Diskonteringsräntekurvor"),
            p("Detta program beräknar diskonteringsräntekurvor både från idag och framåt i tiden,
                     för exempelvis användning till att beräkna värdet av framtida balansräkningar. Kurvorna kan enkelt skrivas till 
@@ -44,7 +44,7 @@ ui <- fluidPage(
     )
   ),
   fluidRow(
-    column(8,
+    column(10,
            h4("MARKNADSNOTERINGAR FÖR SWAPRÄNTOR"),
            textInput("swaprate", "Marknadsnoteringar", "0.013200, 0.015275, 0.0177, 0.02008, 0.02208, 0.023630, 0.0249, 0.025930, 0.02678, 0.02745, NA, 0.028450, NA, NA, 0.029400, NA, NA, NA, NA, 0.0304", 
                      width = "100%"),
@@ -56,7 +56,7 @@ ui <- fluidPage(
     )
   ),
   fluidRow(
-    column(8,
+    column(10,
            mainPanel(
              tabsetPanel(
                type = "tabs",
