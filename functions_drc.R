@@ -150,6 +150,9 @@ stress <- function(x,
 }
 
 interestRateSwap <- function(par_t, credit.adj = -0.0035, allow.negative.rates = TRUE, stress = NULL, args.stress = list()) {
+  if (missing(par_t)) stop("Missing swap rates")
+  if (is.na(par_t[1])) stop("First swap rate is NA")
+  if (is.na(par_t[length(par_t)])) stop("Last swap rate is NA")
   par_t.adj <- par_t + credit.adj
   if (!allow.negative.rates) par_t.adj[par_t.adj < 0] <- 0
   if (!is.null(stress)) {
