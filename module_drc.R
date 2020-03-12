@@ -1,21 +1,41 @@
 # Module user interface
 weightedInterestRateSwapUI <- function(id, selected = list()) {
   ns <- NS(id)
-  stress_type <- match.arg(selected$stress_type, c("none", "absolute_up", "absolute_down", "relative_up", "relative_down"))
+  stress_type <- match.arg(selected$stress_type, c("identity", 
+                                                   "no_negative",
+                                                   "absolute_up", 
+                                                   "absolute_up_100bps", 
+                                                   "absolute_up_50bps",
+                                                   "absolute_down", 
+                                                   "absolute_down_100bps", 
+                                                   "absolute_down_50bps",
+                                                   "relative_up", 
+                                                   "relative_down")
+  )
   tagList(
     fluidRow(
       column(12,
              radioButtons(ns("stress_type"), 
                           label = "Stresstyp:",
-                          choiceNames = c("Ingen",
+                          choiceNames = c("Otransformerad",
+                                          "Till\u00E5t ej negativa kreditriskjusterade swapr\u00E4ntor",
                                           "Absolut r\u00E4nteh\u00F6jningschock",
+                                          "Absolut r\u00E4nteh\u00F6jningschock 100bps",
+                                          "Absolut r\u00E4nteh\u00F6jningschock 50bps",
                                           "Absolut r\u00E4ntes\u00E4nkningschock",
+                                          "Absolut r\u00E4ntes\u00E4nkningschock 100bps",
+                                          "Absolut r\u00E4ntes\u00E4nkningschock 50bps",
                                           "Relativ r\u00E4nteh\u00F6jningschock",
                                           "Relativ r\u00E4ntes\u00E4nkningschock"),
-                          choiceValues = c("none",
-                                           "absolute_up",
-                                           "absolute_down",
-                                           "relative_up",
+                          choiceValues = c("identity", 
+                                           "no_negative",
+                                           "absolute_up", 
+                                           "absolute_up_100bps", 
+                                           "absolute_up_50bps",
+                                           "absolute_down", 
+                                           "absolute_down_100bps", 
+                                           "absolute_down_50bps",
+                                           "relative_up", 
                                            "relative_down"),
                           selected = stress_type,
                           inline = TRUE
@@ -37,7 +57,6 @@ weightedInterestRateSwapServer <- function(input,
                                            swaprate,
                                            maximum_maturity,
                                            credit_risk_adjustment,
-                                           allow_negative_rates,
                                            ufr) {
   
   # Datasets
@@ -45,11 +64,10 @@ weightedInterestRateSwapServer <- function(input,
     suppressWarnings(par_t <- as.numeric(trimws(unlist(strsplit(swaprate(), ",")))))
     wirs <- weightedInterestSwap(par_t, 
                                  T = maximum_maturity(), 
-                                 credit.adj = credit_risk_adjustment(), 
-                                 allow.negative.rates = allow_negative_rates(), 
+                                 shift = credit_risk_adjustment(),
                                  UFR = ufr(),
-                                 stress = stress,
-                                 args.stress = list(type = input$stress_type))
+                                 transformation = stress,
+                                 args.transformation = list(type = input$stress_type))
   })
   
   # Tables

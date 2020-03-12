@@ -103,19 +103,44 @@ objectiveFunction <- function(x, s, t, part, df) {
 }
 
 stress <- function(x, 
-                   type = c("none", "absolute_up", "absolute_down", "relative_up", "relative_down"),
+                   type = c("identity", 
+                            "no_negative",
+                            "absolute_up", 
+                            "absolute_up_100bps", 
+                            "absolute_up_50bps",
+                            "absolute_down", 
+                            "absolute_down_100bps", 
+                            "absolute_down_50bps",
+                            "relative_up", 
+                            "relative_down"),
                    t = NULL,
                    y = NULL) {
+  # x swapräntor
   # type teckensträng, exempelvis "absolute_up"
+  # t löptider
+  # y stresser
   type <- match.arg(type)
   if (is.null(t)) t <- c(1:10, 12, 15, 20)
-  none = function(x) {
+  no_negative = function(x) {
+    x[which(x<0)] <- 0.0
     return(x)
   }
   absolute_up = function(x) {
     if (is.null(y)) y <- (1/10000)*c(50, 53, 56, 60, 62, 64, 65, 66, 67, 68, 69, 70, 70)
     f <- approxfun(t, y, rule = 2)
     x[which(x>0)] <- x[which(x>0)]+f(which(x>0))
+    return(x)
+  }
+  absolute_up_100bps = function(x) {
+    if (is.null(y)) y <- (1/10000)*c(100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100)
+    f <- approxfun(t, y, rule = 2)
+    x <- ifelse(x+f(x)<0, 0.0, x+f(x))
+    return(x)
+  }
+  absolute_up_50bps = function(x) {
+    if (is.null(y)) y <- (1/10000)*c(50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50)
+    f <- approxfun(t, y, rule = 2)
+    x <- ifelse(x+f(x)<0, 0.0, x+f(x))
     return(x)
   }
   absolute_down = function(x) {
@@ -126,6 +151,18 @@ stress <- function(x,
     x_cut_stressed <- x_cut-f(index_positive)
     x_cut_stressed[x_cut_stressed<0] <- 0
     x[index_positive] <- x_cut_stressed
+    return(x)
+  }
+  absolute_down_100bps = function(x) {
+    if (is.null(y)) y <- (1/10000)*c(100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100)
+    f <- approxfun(t, y, rule = 2)
+    x <- ifelse(x-f(x)<0, 0.0, x-f(x))
+    return(x)
+  }
+  absolute_down_50bps = function(x) {
+    if (is.null(y)) y <- (1/10000)*c(50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50)
+    f <- approxfun(t, y, rule = 2)
+    x <- ifelse(x-f(x)<0, 0.0, x-f(x))
     return(x)
   }
   relative_up = function(x) {
@@ -141,36 +178,36 @@ stress <- function(x,
     return(x)
   }
   switch(type,
-         none = none(x),
+         identity = I(x),
+         no_negative = no_negative(x),
          absolute_up = absolute_up(x),
+         absolute_up_100bps = absolute_up_100bps(x),
+         absolute_up_50bps = absolute_up_50bps(x),
          absolute_down = absolute_down(x),
+         absolute_down_100bps = absolute_down_100bps(x),
+         absolute_down_50bps = absolute_down_50bps(x),
          relative_up = relative_up(x),
          relative_down = relative_down(x)
   )
 }
 
-interestRateSwap <- function(par_t, credit.adj = -0.0035, allow.negative.rates = TRUE, stress = NULL, args.stress = list()) {
-  if (missing(par_t)) stop("Missing swap rates")
-  if (is.na(par_t[1])) stop("First swap rate is NA")
-  if (is.na(par_t[length(par_t)])) stop("Last swap rate is NA")
-  par_t.adj <- par_t + credit.adj
-  if (!allow.negative.rates) par_t.adj[par_t.adj < 0] <- 0
-  if (!is.null(stress)) {
-    par_t.adj.stressed <- do.call(stress, c(list(x = par_t.adj), args.stress))
-  } else {
-    par_t.adj.stressed <- par_t.adj
-  }
-  df <- discountFactors(part = par_t.adj.stressed)
+interestRateSwap <- function(x, shift = -0.0035, transformation = I, args.transformation = list()) {
+  if (missing(x)) stop("Missing swap rates")
+  if (is.na(x[1])) stop("First swap rate is NA")
+  if (is.na(x[length(x)])) stop("Last swap rate is NA")
+  x.adj <- x + shift
+  x.adj.trans <- do.call(transformation, c(list(x = x.adj), args.transformation))
+  df <- discountFactors(part = x.adj.trans)
   zcr <- zeroCouponRates(df = df)
-  fwdr <- vforwardRates(1:length(par_t), df)
+  fwdr <- vforwardRates(1:length(x), df)
   while (any(is.na(df))) {
     naindex <- min(which(is.na(df))) # Smallest index of NAs in df
     t_1 <- naindex-1 # Largest non-NA index before NA in df
-    index <- which(!is.na(par_t.adj.stressed)) # Indices that are not NA in par_t
+    index <- which(!is.na(x.adj.trans)) # Indices that are not NA in x
     t_3 <- index[min(which(index>naindex))] # The smallest non-NA index that is larger than naindex
     j <- naindex:(t_3-1) # NA indices in DF
     logLinearDFRelationships <- lapply(j, function (x) logLinearDFRelationshipClosure(c(t_1, x, t_3), df))
-    zcr[t_3] <- optim(par = 0.001, fn = objectiveFunction, s = t_1, t = t_3, part = par_t.adj.stressed, df = df, method = "Brent", lower = -0.5, upper = 0.5)$par
+    zcr[t_3] <- optim(par = 0.001, fn = objectiveFunction, s = t_1, t = t_3, part = x.adj.trans, df = df, method = "Brent", lower = -0.5, upper = 0.5, control = list(reltol = .Machine$double.eps))$par
     df[t_3] <- 1/(1+zcr[t_3])^(t_3)
     m <- 1
     for (k in naindex:(t_3-1)) {
@@ -179,11 +216,11 @@ interestRateSwap <- function(par_t, credit.adj = -0.0035, allow.negative.rates =
     }
     fwdr[naindex:t_3] <- ((df[t_1]/df[t_3])^(1/(t_3-t_1)))-1
   }
-  zcr <- zeroCouponRates(1:length(par_t.adj.stressed), df)
-  datafr <- data.frame(1:length(par_t), 
-                       par_t, 
-                       par_t.adj, 
-                       par_t.adj.stressed,
+  zcr <- zeroCouponRates(1:length(x.adj.trans), df)
+  datafr <- data.frame(1:length(x), 
+                       x, 
+                       x.adj, 
+                       x.adj.trans,
                        fwdr, 
                        df, 
                        zcr)
@@ -197,26 +234,24 @@ interestRateSwap <- function(par_t, credit.adj = -0.0035, allow.negative.rates =
   return(datafr)
 }
 
-weightedInterestSwap <- function(par_t, 
+weightedInterestSwap <- function(x, 
                                  T, 
-                                 credit.adj = -0.0035, 
-                                 allow.negative.rates = FALSE, 
+                                 shift = -0.0035,
                                  UFR = 0.042,
-                                 stress = NULL, 
-                                 args.stress = list()) {
+                                 transformation = I, 
+                                 args.transformation = list()) {
   # T Längsta Loptid
-  # par_t marknadsnoteringar för swapräntor
-  par_t_long <- rep_len(NA, length.out = T)
-  par_t_long.adj <- rep_len(NA, length.out = T)
-  par_t_long.adj.stressed <- rep_len(NA, length.out = T)
+  # x marknadsnoteringar för swapräntor
+  x_long <- rep_len(NA, length.out = T)
+  x_long.adj <- rep_len(NA, length.out = T)
+  x_long.adj.trans <- rep_len(NA, length.out = T)
   fwdr_long <- rep_len(NA, length.out = T)
-  irs <- interestRateSwap(par_t, 
-                          credit.adj = credit.adj, 
-                          allow.negative.rates = allow.negative.rates, 
-                          stress = stress, 
-                          args.stress = args.stress)
-  par_t.adj <- irs[ , 3]
-  par_t.adj.stressed <- irs[ , 4]
+  irs <- interestRateSwap(x, 
+                          shift = shift, 
+                          transformation = transformation, 
+                          args.transformation = args.transformation)
+  x.adj <- irs[ , 3]
+  x.adj.trans <- irs[ , 4]
   fwdr <- irs[ , 5]
   wfwdr <- weightedForwardRate(fwdr, 
                                w = weight, 
@@ -224,15 +259,15 @@ weightedInterestSwap <- function(par_t,
                                UFR = UFR)
   wdf <- discountFactors_2(T, wfwdr)
   wzcr <- zeroCouponRates(df = wdf)
-
-  par_t_long[seq(par_t)] <- par_t
-  par_t_long.adj[seq(par_t.adj)] <- par_t.adj
-  par_t_long.adj.stressed[seq(par_t.adj.stressed)] <- par_t.adj.stressed
+  
+  x_long[seq(x)] <- x
+  x_long.adj[seq(x.adj)] <- x.adj
+  x_long.adj.trans[seq(x.adj.trans)] <- x.adj.trans
   fwdr_long[seq(fwdr)] <- fwdr
   datafr <- data.frame(seq(wfwdr), 
-                       par_t_long, 
-                       par_t_long.adj,
-                       par_t_long.adj.stressed,
+                       x_long, 
+                       x_long.adj,
+                       x_long.adj.trans,
                        fwdr_long,
                        wfwdr, 
                        wdf, 
@@ -240,7 +275,7 @@ weightedInterestSwap <- function(par_t,
   names(datafr) <- c("L\u00F6ptid", 
                      "Marknadsnot. ", 
                      "Marknadsnot. kred. just.",
-                     "Marknadsnot. kred. just. str.",
+                     "Marknadsnot. kred. just. stressade",
                      "Terminsr\u00E4nta",
                      "Terminsr\u00E4nta viktad", 
                      "Diskonteringsfaktor", 
@@ -248,11 +283,11 @@ weightedInterestSwap <- function(par_t,
   return(datafr)
 }
 
-scenarioGenerator <- function(par_t, start.year, T, UFR = 0.042, ...) {
+scenarioGenerator <- function(x, start.year, T, UFR = 0.042, ...) {
   # Denna funktion diskonterar alla framtida kassaflöden till första året,
   # även för framtida kontrakt. Bör endast användas i sällsynta fall?
   # Output är en lista innehållandes tre matriser.
-  # par_t är marknadsnoteringar för ränteswapavtal.
+  # x är marknadsnoteringar för ränteswapavtal.
   # start.year är år man börjar.
   # T är antal år framåt i tiden.
   # UFR = ultimate forward rate
@@ -260,7 +295,7 @@ scenarioGenerator <- function(par_t, start.year, T, UFR = 0.042, ...) {
   M <- matrix(NA, T, T) # Terminsräntor
   N <- matrix(NA, T, T) # Diskonteringsfaktorer
   K <- matrix(NA, T, T) # Nollkupongräntor
-  wfwdr <- weightedInterestSwap(par_t, T = T, ...)[ , 2]
+  wfwdr <- weightedInterestSwap(x, T = T, ...)[ , 2]
   M[1, ] <- wfwdr
   row <- 2
   while (!(vector.is.empty(wfwdr)) & row<=T) {
@@ -290,11 +325,11 @@ scenarioGenerator <- function(par_t, start.year, T, UFR = 0.042, ...) {
   return(list("Terminsr\u00E4nta viktad" = M, "Diskonteringsfaktor" = N, "Nollkupongr\u00E4nta" = K))
 }
 
-scenarioGenerator_2 <- function(par_t, start.year, T, stress = NULL, UFR = 0.042, ...) {
+scenarioGenerator_2 <- function(x, start.year, T, stress = NULL, UFR = 0.042, ...) {
   # Denna funktion diskonterar bara till varje nytt år.
   # (används t.ex. för diskontering vid framräkning av framtida balansräkningar)
   # Output är en lista innehållandes tre matriser.
-  # par_t är marknadsnoteringar för ränteswapavtal.
+  # x är marknadsnoteringar för ränteswapavtal.
   # start.year är år man börjar.
   # T är antal år framåt i tiden.
   # stress är en stressvektor vars längd måste vara lika med T.
@@ -305,7 +340,7 @@ scenarioGenerator_2 <- function(par_t, start.year, T, stress = NULL, UFR = 0.042
   M <- matrix(NA, T, T) # Terminsräntor
   N <- matrix(NA, T, T) # Diskonteringsfaktorer
   K <- matrix(NA, T, T) # Nollkupongräntor
-  wfwdr <- weightedInterestSwap(par_t, T = T, ...)[ , 2]
+  wfwdr <- weightedInterestSwap(x, T = T, ...)[ , 2]
   M[1, ] <- wfwdr
   row <- 2
   while (!(vector.is.empty(wfwdr)) & row<=T) {
