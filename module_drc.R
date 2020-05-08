@@ -16,7 +16,7 @@ weightedInterestRateSwapUI <- function(id, selected = list()) {
     fluidRow(
       column(12,
              radioButtons(ns("stress_type"), 
-                          label = "Stresstyp:",
+                          label = "Transformering (stress):",
                           choiceNames = c("Otransformerad",
                                           "Till\u00E5t ej negativa kreditriskjusterade swapr\u00E4ntor",
                                           "Absolut r\u00E4nteh\u00F6jningschock",
@@ -56,18 +56,18 @@ weightedInterestRateSwapServer <- function(input,
                                            session, 
                                            swaprate,
                                            maximum_maturity,
-                                           credit_risk_adjustment,
+                                           shift,
                                            ufr) {
   
   # Datasets
   datasetWeightedInterestRateSwap <- reactive({
     suppressWarnings(par_t <- as.numeric(trimws(unlist(strsplit(swaprate(), ",")))))
-    wirs <- weightedInterestSwap(par_t, 
-                                 T = maximum_maturity(), 
-                                 shift = credit_risk_adjustment(),
-                                 UFR = ufr(),
-                                 transformation = stress,
-                                 args.transformation = list(type = input$stress_type))
+    wirs <- weightedInterestRateSwap(par_t, 
+                                     T = maximum_maturity(), 
+                                     shift = shift(),
+                                     UFR = ufr(),
+                                     transformation = stress,
+                                     args.transformation = list(type = input$stress_type))
   })
   
   # Tables

@@ -2,11 +2,7 @@
 # för användning till exempelvis framtida balansräkningar. Kurvorna kan enkelt skrivas till 
 # Excel i tabellformat eller plottas som ytor.
 # Indata är marknadsnoterade swapräntor.
-
-# Se exempel från PROMEMORIA 2013-12-01 [FI Dnr 13-11409].
-# Programmerad av Christian Savemark (maj 2019)
-# Ändringar: Namn (datum)
-# Ändringar består i:
+# Se exempel från PROMEMORIA 2013-12-01 [FI Dnr 13-11409]
 
 discountFactors <- function(t = length(part), part) {
   i <- 2
@@ -59,7 +55,7 @@ weight <- function(t, T1 = 10, T2 = T1+10) {
          ifelse(t>T1 & t<=T2, (t-T1)/(T2-T1+1), 1))
 }
 
-weightedForwardRate <- function(fwdr, w, T, UFR = 0.042) {
+weightedForwardRate <- function(fwdr, w, T, UFR = 0) {
   # fwdr vektor av terminsräntor
   # w viktningsfunktion
   # T längsta Loptid
@@ -191,7 +187,7 @@ stress <- function(x,
   )
 }
 
-interestRateSwap <- function(x, shift = -0.0035, transformation = I, args.transformation = list()) {
+interestRateSwap <- function(x, shift = 0, transformation = I, args.transformation = list()) {
   if (missing(x)) stop("Missing swap rates")
   if (is.na(x[1])) stop("First swap rate is NA")
   if (is.na(x[length(x)])) stop("Last swap rate is NA")
@@ -234,12 +230,55 @@ interestRateSwap <- function(x, shift = -0.0035, transformation = I, args.transf
   return(datafr)
 }
 
-weightedInterestSwap <- function(x, 
-                                 T, 
-                                 shift = -0.0035,
-                                 UFR = 0.042,
-                                 transformation = I, 
-                                 args.transformation = list()) {
+interestRateSwap_2 <- function(x, shift = 0, transformation = I, args.transformation = list()) {
+  if (missing(x)) stop("Missing swap rates")
+  if (is.na(x[1])) stop("First swap rate is NA")
+  if (is.na(x[length(x)])) stop("Last swap rate is NA")
+  x.adj <- x + shift
+  x.adj.trans <- do.call(transformation, c(list(x = x.adj), args.transformation))
+  df <- discountFactors(part = x.adj.trans)
+  zcr <- zeroCouponRates(df = df)
+  fwdr <- vforwardRates(1:length(x), df)
+  while (any(is.na(df))) {
+    naindex <- min(which(is.na(df))) # Smallest index of NAs in df
+    t_1 <- naindex-1 # Largest non-NA index before NA in df
+    index <- which(!is.na(x.adj.trans)) # Indices that are not NA in x
+    t_3 <- index[min(which(index>naindex))] # The smallest non-NA index that is larger than naindex
+    j <- naindex:(t_3-1) # NA indices in DF between t_1 and t_3
+    logLinearDFRelationships <- lapply(j, function (x) logLinearDFRelationshipClosure(c(t_1, x, t_3), df))
+    zcr[t_3] <- optim(par = 0.001, fn = objectiveFunction, s = t_1, t = t_3, part = x.adj.trans, df = df, method = "Brent", lower = -0.5, upper = 0.5, control = list(reltol = .Machine$double.eps))$par
+    df[t_3] <- 1/(1+zcr[t_3])^(t_3)
+    m <- 1
+    for (k in naindex:(t_3-1)) {
+      df[k] <- logLinearDFRelationships[[m]](zcr[t_3])
+      m <- m+1
+    }
+    fwdr[naindex:t_3] <- ((df[t_1]/df[t_3])^(1/(t_3-t_1)))-1
+  }
+  zcr <- zeroCouponRates(1:length(x.adj.trans), df)
+  datafr <- data.frame(1:length(x), 
+                       x, 
+                       x.adj, 
+                       x.adj.trans,
+                       fwdr, 
+                       df, 
+                       zcr)
+  names(datafr) <- c("L\u00F6ptid", 
+                     "Marknadsnot.", 
+                     "Marknadsnot. kred. just.", 
+                     "Marknadsnot. kred. just. stressade",
+                     "Terminsr\u00E4nta swap", 
+                     "Diskonteringsfaktor", 
+                     "Nollkupongr\u00E4nta")
+  return(datafr)
+}
+
+weightedInterestRateSwap <- function(x, 
+                                     T, 
+                                     shift = 0,
+                                     UFR = 0,
+                                     transformation = I, 
+                                     args.transformation = list()) {
   # T Längsta Loptid
   # x marknadsnoteringar för swapräntor
   x_long <- rep_len(NA, length.out = T)
@@ -283,50 +322,8 @@ weightedInterestSwap <- function(x,
   return(datafr)
 }
 
-scenarioGenerator <- function(x, start.year, T, UFR = 0.042, ...) {
-  # Denna funktion diskonterar alla framtida kassaflöden till första året,
-  # även för framtida kontrakt. Bör endast användas i sällsynta fall?
-  # Output är en lista innehållandes tre matriser.
-  # x är marknadsnoteringar för ränteswapavtal.
-  # start.year är år man börjar.
-  # T är antal år framåt i tiden.
-  # UFR = ultimate forward rate
-  vector.is.empty <- function(x) return(length(x) == 0)
-  M <- matrix(NA, T, T) # Terminsräntor
-  N <- matrix(NA, T, T) # Diskonteringsfaktorer
-  K <- matrix(NA, T, T) # Nollkupongräntor
-  wfwdr <- weightedInterestSwap(x, T = T, ...)[ , 2]
-  M[1, ] <- wfwdr
-  row <- 2
-  while (!(vector.is.empty(wfwdr)) & row<=T) {
-    wfwdr <- wfwdr[-1]
-    M[row, seq(wfwdr)] <- wfwdr
-    row <- row+1
-  }
-  M[is.na(M)] <- UFR
-  N[, 1] <- discountFactors_2(T, M[, 1])
-  N[1, ] <- discountFactors_2(T, M[1, ])
-  for (i in 2:T) {
-    for (j in 2:T) {
-      N[i, j] <- nextDiscountFactor(N[i, j-1], M[i, j])
-    }
-  }
-  for (i in seq(T)) {
-    for (j in seq(T)) {
-      if (i == 1 & j == 1) {
-        K[1, 1] <- M[1, 1]
-      } else {
-        K[i, j] <- zeroCouponRate(t = ((i-1)+(j-1)+1), df = N[i, j])
-      }
-    }
-  }
-  rownames(M) <- rownames(N) <- rownames(K) <- start.year:(start.year+T-1)
-  colnames(M) <- colnames(N) <- colnames(K) <- seq(T)
-  return(list("Terminsr\u00E4nta viktad" = M, "Diskonteringsfaktor" = N, "Nollkupongr\u00E4nta" = K))
-}
-
-scenarioGenerator_2 <- function(x, start.year, T, stress = NULL, UFR = 0.042, ...) {
-  # Denna funktion diskonterar bara till varje nytt år.
+scenarioGenerator <- function(x, start.year, T, UFR = 0, stress = NULL, ...) {
+  # Denna funktion räknar ut diskonteringsfaktorer till varje nytt år.
   # (används t.ex. för diskontering vid framräkning av framtida balansräkningar)
   # Output är en lista innehållandes tre matriser.
   # x är marknadsnoteringar för ränteswapavtal.
@@ -340,7 +337,7 @@ scenarioGenerator_2 <- function(x, start.year, T, stress = NULL, UFR = 0.042, ..
   M <- matrix(NA, T, T) # Terminsräntor
   N <- matrix(NA, T, T) # Diskonteringsfaktorer
   K <- matrix(NA, T, T) # Nollkupongräntor
-  wfwdr <- weightedInterestSwap(x, T = T, ...)[ , 2]
+  wfwdr <- weightedInterestRateSwap(x, T = T, UFR = UFR, ...)[ , 6]
   M[1, ] <- wfwdr
   row <- 2
   while (!(vector.is.empty(wfwdr)) & row<=T) {
@@ -367,6 +364,48 @@ scenarioGenerator_2 <- function(x, start.year, T, stress = NULL, UFR = 0.042, ..
       stress <- c(stress[-1], stress.last)
       K[row, ] <- K[row, ]+stress
       row <- row+1
+    }
+  }
+  rownames(M) <- rownames(N) <- rownames(K) <- start.year:(start.year+T-1)
+  colnames(M) <- colnames(N) <- colnames(K) <- seq(T)
+  return(list("Terminsr\u00E4nta viktad" = M, "Diskonteringsfaktor" = N, "Nollkupongr\u00E4nta" = K))
+}
+
+scenarioGenerator_2 <- function(x, start.year, T, UFR = 0, ...) {
+  # Denna funktion kan användas till att diskontera alla framtida kassaflöden till första året,
+  # även för framtida kontrakt. Bör endast användas i sällsynta fall?
+  # Output är en lista innehållandes tre matriser.
+  # x är marknadsnoteringar för ränteswapavtal.
+  # start.year är år man börjar.
+  # T är antal år framåt i tiden.
+  # UFR = ultimate forward rate
+  vector.is.empty <- function(x) return(length(x) == 0)
+  M <- matrix(NA, T, T) # Terminsräntor
+  N <- matrix(NA, T, T) # Diskonteringsfaktorer
+  K <- matrix(NA, T, T) # Nollkupongräntor
+  wfwdr <- weightedInterestRateSwap(x, T = T, UFR = UFR, ...)[ , 6]
+  M[1, ] <- wfwdr
+  row <- 2
+  while (!(vector.is.empty(wfwdr)) & row<=T) {
+    wfwdr <- wfwdr[-1]
+    M[row, seq(wfwdr)] <- wfwdr
+    row <- row+1
+  }
+  M[is.na(M)] <- UFR
+  N[, 1] <- discountFactors_2(T, M[, 1])
+  N[1, ] <- discountFactors_2(T, M[1, ])
+  for (i in 2:T) {
+    for (j in 2:T) {
+      N[i, j] <- nextDiscountFactor(N[i, j-1], M[i, j])
+    }
+  }
+  for (i in seq(T)) {
+    for (j in seq(T)) {
+      if (i == 1 & j == 1) {
+        K[1, 1] <- M[1, 1]
+      } else {
+        K[i, j] <- zeroCouponRate(t = ((i-1)+(j-1)+1), df = N[i, j])
+      }
     }
   }
   rownames(M) <- rownames(N) <- rownames(K) <- start.year:(start.year+T-1)

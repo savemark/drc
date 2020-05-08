@@ -1,11 +1,22 @@
 # Load packages
-library(shiny)
-library(shinyWidgets)
-library(shinydashboard)
-library(shinydashboardPlus)
-library(shinyjs)
-library(DT)
-library(wesanderson)
+# packages <- c("shiny", "shinyWidgets", "shinydashboard", "shinydashboardPlus", "shinyjs", "DT", "viridis", "openxlsx")
+# 
+# for (package in packages) {
+#   if (!require(package, character.only = TRUE, quietly = FALSE)) {
+#     install.packages(package)
+#     library(package, character.only = TRUE)
+#   }
+# }
+
+library("shiny")
+library("markdown")
+library("shinyWidgets")
+library("shinydashboard")
+library("shinydashboardPlus")
+library("shinyjs")
+library("DT")
+library("viridis")
+library("openxlsx")
 
 # Load separate module and function scripts
 source("functions_drc.R")
@@ -54,45 +65,33 @@ ui <- dashboardPagePlus(
                     Excel i tabellformat.\n
                     Indata är marknadsnoterade swapräntor."),
                   tags$p("Finansinspektionen publicerar dessa beräkningar månadsvis.")
-                )
-              ),
-              fluidRow(
+                ),
                 boxPlus(
                   title = "Information om diskonteringsräntekurvor som publiceras", 
                   status = "primary",
-                  width = 6,
+                  width = 12,
                   collapsible = TRUE,
                   collapsed = TRUE,
                   closable = FALSE,
-                  tags$h4("Diskonteringsräntekurvor som publiceras"),
-                  tags$ul(
-                    tags$li("Flikar FFFS 2013:23: diskonteringsräntekurvor som är beräknade enligt FFFS 2013:23."),
-                    tags$li("Flikar FFFS 2019:21 Ordinarie: diskonteringsräntekurvor beräknade enligt FFFS 2019:21 med ordinarie metod för beräkning av långsiktig terminsränta."),
-                    tags$li("Flikar FFFS 2019:21 Tillfällig: diskonteringsräntekurvor beräknade enligt FFFS 2019:21 med tillfällig metod för beräkning av långsiktig terminsränta (se 4 kap. 26 § i FFFS 2019:21).")
-                  ),
-                  tags$h4("Löptider på swapräntor som använts vid beräkning av diskonteringsräntekurvor"),
-                  tags$ul(
-                    tags$li("FFFS 2013:23: 1-10, 12, 15 och 20"),
-                    tags$li("FFFS 2019:21 Ordinarie: 1-10, 12, 15 och 20"),
-                    tags$li("FFFS 2019:21 Tillfällig: 1-10, 12, 15 och 20.")
-                  ),
-                  tags$h4("Nivå på långsiktig terminsränta som använts vid beräkning av diskonteringsräntekurvor"),
-                  tags$ul(
-                    tags$li("FFFS 2013:23: 4,2 % (konstant enligt Bilaga 2 till FFFS 2013:23)"),
-                    tags$li("FFFS 2019:21 Ordinarie: 3,75 % (fastställs årligen enligt 4 kap. 18 § i FFFS 2019:21"),
-                    tags$li("FFFS 2019:21 tillfällig 4,2 % (bestäms i enlighet med 4 kap. 26 § i FFFS 2019:21).")
-                  )
+                  includeMarkdown("markdown/information.md")
+                ),
+                boxPlus(
+                  title = "Lathund", 
+                  status = "primary",
+                  width = 12,
+                  collapsible = TRUE,
+                  collapsed = FALSE,
+                  closable = FALSE,
+                  includeMarkdown("markdown/lathund.md")
                 ),
                 boxPlus(
                   title = "Beräkningsmetodik", 
                   status = "primary",
-                  width = 6,
+                  width = 12,
                   collapsible = TRUE,
                   collapsed = TRUE,
                   closable = FALSE,
-                  helpText("Programmet beräknar diskonteringsräntekurvorna genom att lösa följande optimeringsproblem."),
-                  helpText("$$\\min_{x}\\left(\\text{par}(t_3)\\cdot\\sum_{i=1}^{t_1}\\text{DF}(i)+y_{t_1+1}(x)+\\dots+y_{t_3-1}(x)+\\frac{1}{(1+x)^{t_3}}-\\left(1-\\frac{1}{1+x}\\right)\\right)^2$$"),
-                  helpText("För fler detaljer, se beräkningsmetodik i promemoria [FI-Dnr 13-11409 (2013-12-01)].")
+                  includeMarkdown("markdown/math_theory.md")
                 )
               ),
               fluidRow(
@@ -101,15 +100,17 @@ ui <- dashboardPagePlus(
                   status = "warning",
                   width = 12,
                   collapsible = TRUE,
-                  textInput("swaprate", "Marknadsnoteringar", "0.00075, 0.00048, 0.00045, 0.00055, 0.00075, 0.001, 0.00133, 0.00168, 0.00208, 0.00253, NA, 0.00333, NA, NA, 0.0042, NA, NA, NA, NA, 0.005", 
-                            width = "100%"),
-                  #-0.00095, -0.001, -0.00103, -0.00083, -0.00045, 0.00005, 0.00065, 0.00125, 0.00185, 0.00243, NA, 0.00348, NA, NA, 0.00465, NA, NA, NA, NA, 0.00578
-                  #0.013200, 0.015275, 0.0177, 0.02008, 0.02208, 0.023630, 0.0249, 0.025930, 0.02678, 0.02745, NA, 0.028450, NA, NA, 0.029400, NA, NA, NA, NA, 0.0304
-                  #0.00075, 0.00048, 0.00045, 0.00055, 0.00075,	0.001, 0.00133,	0.00168, 0.00208,	0.00253, NA, 0.00333, NA, NA, 0.0042, NA, NA, NA, NA,	0.005
-                  #0.00178, 0.0017, 0.00178, 0.00183, 0.00213, 0.0025, 0.00293, 0.00335, 0.0038, 0.00425, NA, 0.00515, NA, NA, 0.00613, NA, NA, NA, NA, 0.00705
-                  tags$p("Skriv in marknadsnoteringar för swapräntor. NA står för Not Available. NA behöver skrivas in för noteringar som saknas upp till den sista kända marknadsnoterade swapräntan. Den
+                  column(3,
+                         dateInput("drc_date", label = "Datum", value = Sys.Date(), language = "sv"),
+                         tags$p("Välj det datum som gäller för marknadsnoteringarna: den sista vardagen i föregående månad under förutsättning att marknaden var öppen. Valt datum skrivs automatiskt till alla flikar i excelfilen för publicering som laddas ned i menyn till höger.")
+                  ),
+                  column(9,
+                         textInput("swaprate", "Marknadsnoteringar", "0.00075, 0.00048, 0.00045, 0.00055, 0.00075, 0.001, 0.00133, 0.00168, 0.00208, 0.00253, NA, 0.00333, NA, NA, 0.0042, NA, NA, NA, NA, 0.005", 
+                                   width = "100%"),
+                         tags$p("Skriv in marknadsnoteringar för swapräntor. De hämtas m.h.a. Thomson Reuters Datastream i Excel (eller Eikon). NA står för Not Available. NA behöver skrivas in för noteringar som saknas upp till den sista kända marknadsnoterade swapräntan. Den
                      första och den sista koordinaten i n-tupeln ovan får inte vara NA eftersom diskonteringsfaktorer beräknas rekursivt mellan kända noteringar."),
-                  tags$p("Observera att decimalpunkt används för dessa tal men inte för andra tal i programmet.")
+                         tags$p("Observera att decimalpunkt används för dessa tal men inte för andra tal i programmet.")
+                  )
                 )
               ),
               fluidRow(
@@ -145,6 +146,9 @@ ui <- dashboardPagePlus(
                                    type = "tabs",
                                    tabPanel("Tjänstepensionskurvan", 
                                             weightedInterestRateSwapUI("no_negative_2013", 
+                                                                       selected = list(stress_type = "no_negative"))),
+                                   tabPanel("Annan Försäkring", 
+                                            weightedInterestRateSwapUI("other_2013", 
                                                                        selected = list(stress_type = "no_negative"))),
                                    tabPanel("Räntehöjningschock 100bps (absolut)", 
                                             weightedInterestRateSwapUI("abs_up_100_2013", 
@@ -261,17 +265,17 @@ server <- function(input, output, session) {
       output$right_side_bar <- renderUI({
         tagList(
           tags$p(tags$i("FFFS 2013:23")),
-          numericInput("credit_risk_adjustment_2013", "Kreditriskjustering", -0.0035, step = 1/10000),
+          numericInput("shift_2013", "Kreditriskjustering", -0.0035, step = 1/10000),
           numericInput("ufr_2013", "L\u00E5ngsiktig terminsr\u00E4nta", 0.042, step = 1/10000),
           sliderInput("maximum_maturity_2013", "L\u00E4ngsta l\u00F6ptid", min = 20, max = 150, value = 100),
           tags$hr(),
           tags$p(tags$i("FFFS 2019:21 Ordinarie")),
-          numericInput("credit_risk_adjustment", "Kreditriskjustering", -0.0015, step = 1/10000),
+          numericInput("shift", "Avdrag", -0.0015, step = 1/10000),
           numericInput("ufr", "L\u00E5ngsiktig terminsr\u00E4nta", 0.0375, step = 1/10000),
           sliderInput("maximum_maturity", "L\u00E4ngsta l\u00F6ptid", min = 20, max = 150, value = 100),
           tags$hr(),
           tags$p(tags$i("FFFS 2019:21 Tillfällig")),
-          numericInput("credit_risk_adjustment_temp", "Kreditriskjustering", -0.0015, step = 1/10000),
+          numericInput("shift_temp", "Avdrag", -0.0015, step = 1/10000),
           numericInput("ufr_temp", "L\u00E5ngsiktig terminsr\u00E4nta", 0.042, step = 1/10000),
           sliderInput("maximum_maturity_temp", "L\u00E4ngsta l\u00F6ptid", min = 20, max = 150, value = 100),
           tags$hr()
@@ -283,153 +287,169 @@ server <- function(input, output, session) {
           tags$p(tags$i("Excelformat")),
           downloadButton("downloadZeroCouponRatesPerFFFS", "För publicering"),
           tags$hr(),
-          tags$p(tags$i("Excelformat")),
-          downloadButton("downloadDatasetWeightedInterestRateSwap", "Alla tabeller")
+          tags$p(tags$i("All data från tabellerna i excelformat")),
+          downloadButton("downloadDatasetWeightedInterestRateSwap_FFFS_2013", "FFFS 2013:23"),
+          tags$br(),
+          tags$br(),
+          downloadButton("downloadDatasetWeightedInterestRateSwap_FFFS_2019_ordinary", "FFFS 2019:21 Ordinarie"),
+          tags$br(),
+          tags$br(),
+          downloadButton("downloadDatasetWeightedInterestRateSwap_FFFS_2019_temp", "FFFS 2019:21 Tillfällig")
         )
       })
       
       # Modules
       # Should construct nested modules rather than the following when time permits...
       
-      # 2013 23
+      # 2013:23
       wirss_identity_2013 <- callModule(weightedInterestRateSwapServer, 
                                         "identity_2013", 
                                         swaprate = reactive({req(input$swaprate)}), 
                                         maximum_maturity = reactive({req(input$maximum_maturity_2013)}), 
-                                        credit_risk_adjustment = reactive({input$credit_risk_adjustment_2013}),
-                                        ufr = reactive({input$ufr_2013})
+                                        shift = reactive({req(input$shift_2013)}),
+                                        ufr = reactive({req(input$ufr_2013)})
       )
       wirss_no_negative_2013 <- callModule(weightedInterestRateSwapServer, 
                                            "no_negative_2013", 
                                            swaprate = reactive({req(input$swaprate)}), 
                                            maximum_maturity = reactive({req(input$maximum_maturity_2013)}), 
-                                           credit_risk_adjustment = reactive({input$credit_risk_adjustment_2013}),
-                                           ufr = reactive({input$ufr_2013})
+                                           shift = reactive({req(input$shift_2013)}),
+                                           ufr = reactive({req(input$ufr_2013)})
+      )
+      wirss_other_2013 <- callModule(weightedInterestRateSwapServer, 
+                                     "other_2013", 
+                                     swaprate = reactive({req(input$swaprate)}), 
+                                     maximum_maturity = reactive({req(input$maximum_maturity_2013)}), 
+                                     shift = reactive({req(input$shift_2013-20/10000)}),
+                                     ufr = reactive({req(input$ufr_2013)})
       )
       wirss_abs_up_100_2013 <- callModule(weightedInterestRateSwapServer, 
                                           "abs_up_100_2013", 
                                           swaprate = reactive({req(input$swaprate)}), 
                                           maximum_maturity = reactive({req(input$maximum_maturity_2013)}),
-                                          credit_risk_adjustment = reactive({input$credit_risk_adjustment_2013}),
-                                          ufr = reactive({input$ufr_2013})
+                                          shift = reactive({req(input$shift_2013)}),
+                                          ufr = reactive({req(input$ufr_2013)})
       )
       wirss_abs_down_100_2013  <- callModule(weightedInterestRateSwapServer, 
                                              "abs_down_100_2013", 
                                              swaprate = reactive({req(input$swaprate)}), 
                                              maximum_maturity = reactive({req(input$maximum_maturity_2013)}),
-                                             credit_risk_adjustment = reactive({input$credit_risk_adjustment_2013}),
-                                             ufr = reactive({input$ufr_2013})
+                                             shift = reactive({req(input$shift_2013)}),
+                                             ufr = reactive({req(input$ufr_2013)})
       )
       wirss_abs_up_50_2013  <- callModule(weightedInterestRateSwapServer, 
                                           "abs_up_50_2013", 
                                           swaprate = reactive({req(input$swaprate)}), 
                                           maximum_maturity = reactive({req(input$maximum_maturity_2013)}),
-                                          credit_risk_adjustment = reactive({input$credit_risk_adjustment_2013}),
-                                          ufr = reactive({input$ufr_2013})
+                                          shift = reactive({req(input$shift_2013)}),
+                                          ufr = reactive({req(input$ufr_2013)})
       )
       wirss_abs_down_50_2013  <- callModule(weightedInterestRateSwapServer, 
                                             "abs_down_50_2013",
                                             swaprate = reactive({req(input$swaprate)}), 
                                             maximum_maturity = reactive({req(input$maximum_maturity_2013)}),
-                                            credit_risk_adjustment = reactive({input$credit_risk_adjustment_2013}),
-                                            ufr = reactive({input$ufr_2013})
+                                            shift = reactive({req(input$shift_2013)}),
+                                            ufr = reactive({req(input$ufr_2013)})
       )
       
-      # 2019 23 Ordinarie
+      # 2019:23 Ordinarie
       wirss_identity_ordinary <- callModule(weightedInterestRateSwapServer, 
                                             "identity_ordinary", 
                                             swaprate = reactive({req(input$swaprate)}), 
                                             maximum_maturity = reactive({req(input$maximum_maturity)}), 
-                                            credit_risk_adjustment = reactive({input$credit_risk_adjustment}),
-                                            ufr = reactive({input$ufr})
+                                            shift = reactive({req(input$shift)}),
+                                            ufr = reactive({req(input$ufr)})
       )
       wirss_abs_up_ordinary <- callModule(weightedInterestRateSwapServer, 
                                           "abs_up_ordinary", 
                                           swaprate = reactive({req(input$swaprate)}), 
                                           maximum_maturity = reactive({req(input$maximum_maturity)}),
-                                          credit_risk_adjustment = reactive({input$credit_risk_adjustment}),
-                                          ufr = reactive({input$ufr})
+                                          shift = reactive({req(input$shift)}),
+                                          ufr = reactive({req(input$ufr)})
       )
       wirss_abs_down_ordinary <- callModule(weightedInterestRateSwapServer, 
                                             "abs_down_ordinary", 
                                             swaprate = reactive({req(input$swaprate)}), 
                                             maximum_maturity = reactive({req(input$maximum_maturity)}),
-                                            credit_risk_adjustment = reactive({input$credit_risk_adjustment}),
-                                            ufr = reactive({input$ufr})
+                                            shift = reactive({req(input$shift)}),
+                                            ufr = reactive({req(input$ufr)})
       )
       wirss_rel_up_ordinary <- callModule(weightedInterestRateSwapServer, 
                                           "rel_up_ordinary", 
                                           swaprate = reactive({req(input$swaprate)}), 
                                           maximum_maturity = reactive({req(input$maximum_maturity)}),
-                                          credit_risk_adjustment = reactive({input$credit_risk_adjustment}),
-                                          ufr = reactive({input$ufr})
+                                          shift = reactive({req(input$shift)}),
+                                          ufr = reactive({req(input$ufr)})
       )
       wirss_rel_down_ordinary <- callModule(weightedInterestRateSwapServer, 
                                             "rel_down_ordinary", 
                                             swaprate = reactive({req(input$swaprate)}), 
                                             maximum_maturity = reactive({req(input$maximum_maturity)}),
-                                            credit_risk_adjustment = reactive({input$credit_risk_adjustment}),
-                                            ufr = reactive({input$ufr})
+                                            shift = reactive({req(input$shift)}),
+                                            ufr = reactive({req(input$ufr)})
       )
       
-      # 2019 Temporär
+      # 2019:23 Temporär
       wirss_identity_temp <- callModule(weightedInterestRateSwapServer, 
                                         "identity_temp", 
                                         swaprate = reactive({req(input$swaprate)}), 
                                         maximum_maturity = reactive({req(input$maximum_maturity_temp)}), 
-                                        credit_risk_adjustment = reactive({input$credit_risk_adjustment_temp}),
-                                        ufr = reactive({input$ufr_temp})
+                                        shift = reactive({req(input$shift_temp)}),
+                                        ufr = reactive({req(input$ufr_temp)})
       )
       wirss_abs_up_temp <- callModule(weightedInterestRateSwapServer, 
                                       "abs_up_temp", 
                                       swaprate = reactive({req(input$swaprate)}), 
                                       maximum_maturity = reactive({req(input$maximum_maturity_temp)}),
-                                      credit_risk_adjustment = reactive({input$credit_risk_adjustment_temp}),
-                                      ufr = reactive({input$ufr_temp})
+                                      shift = reactive({req(input$shift_temp)}),
+                                      ufr = reactive({req(input$ufr_temp)})
       )
       wirss_abs_down_temp <- callModule(weightedInterestRateSwapServer, 
                                         "abs_down_temp", 
                                         swaprate = reactive({req(input$swaprate)}), 
                                         maximum_maturity = reactive({req(input$maximum_maturity_temp)}),
-                                        credit_risk_adjustment = reactive({input$credit_risk_adjustment_temp}),
-                                        ufr = reactive({input$ufr_temp})
+                                        shift = reactive({req(input$shift_temp)}),
+                                        ufr = reactive({req(input$ufr_temp)})
       )
       wirss_rel_up_temp <- callModule(weightedInterestRateSwapServer, 
                                       "rel_up_temp", 
                                       swaprate = reactive({req(input$swaprate)}), 
                                       maximum_maturity = reactive({req(input$maximum_maturity_temp)}),
-                                      credit_risk_adjustment = reactive({input$credit_risk_adjustment_temp}),
-                                      ufr = reactive({input$ufr_temp})
+                                      shift = reactive({req(input$shift_temp)}),
+                                      ufr = reactive({req(input$ufr_temp)})
       )
       wirss_rel_down_temp <- callModule(weightedInterestRateSwapServer, 
                                         "rel_down_temp", 
                                         swaprate = reactive({req(input$swaprate)}), 
                                         maximum_maturity = reactive({req(input$maximum_maturity_temp)}),
-                                        credit_risk_adjustment = reactive({input$credit_risk_adjustment_temp}),
-                                        ufr = reactive({input$ufr_temp})
+                                        shift = reactive({req(input$shift_temp)}),
+                                        ufr = reactive({req(input$ufr_temp)})
       )
       
       # Plots
       output$zcr_curve_all_2013 <- renderPlot({
-        req(input$swaprate, input$maximum_maturity_2013, input$credit_risk_adjustment_2013, input$ufr_2013)
+        req(input$swaprate, input$maximum_maturity_2013, input$shift_2013, input$ufr_2013)
         par(bg = NA)
-        col <- c("black", wes_palette("Zissou1", 5))
         data <- cbind(wirss_no_negative_2013$wirs()[ , 8], 
+                      wirss_other_2013$wirs()[ , 8],
                       wirss_abs_up_100_2013$wirs()[ , 8], 
                       wirss_abs_down_100_2013$wirs()[ , 8], 
                       wirss_abs_up_50_2013$wirs()[ , 8], 
                       wirss_abs_down_50_2013$wirs()[ , 8],
                       wirss_identity_2013$wirs()[ , 8])
+        ncols <- dim(data)[2]
+        col <- c("black", plasma(ncols))
         plot(data[, 1], 
              xlab = "L\u00F6ptid", 
              ylab = "Nollkupongr\u00E4nta", 
              type = "o", 
              main = "Diskonteringsr\u00E4ntekurvor", 
              ylim = 1.10*c(min(data), max(data)),
-             pch = 0)
-        lapply(1:5, function(x) {lines(data[ , x+1], type = "o", col = wes_palette("Zissou1", 5)[x], pch = x)})
+             pch = 1)
+        lapply(2:ncols, function(x) {lines(data[ , x], type = "o", col = col[x], pch = x)})
         legend("topleft", 
                legend = c("Tjänstepensionskurvan", 
+                          "Annan Försäkring",
                           "Absolut räntehöjningschock 100bps",
                           "Absolut räntesänkningschock 100bps",
                           "Absolut räntehöjningschock 50bps",
@@ -439,7 +459,7 @@ server <- function(input, output, session) {
                col = col,
                bty = "n",
                lty = 1,
-               pch = 0:5,
+               pch = 1:ncols,
                bg = "white",
                inset = 0.01
         )
@@ -447,22 +467,23 @@ server <- function(input, output, session) {
       })
       
       output$zcr_curve_all_ordinary <- renderPlot({
-        req(input$swaprate, input$maximum_maturity, input$credit_risk_adjustment, input$ufr)
+        req(input$swaprate, input$maximum_maturity, input$shift, input$ufr)
         par(bg = NA)
-        col <- c("black", wes_palette("Zissou1", 4))
         data <- cbind(wirss_identity_ordinary$wirs()[ , 8], 
                       wirss_abs_up_ordinary$wirs()[ , 8], 
                       wirss_abs_down_ordinary$wirs()[ , 8], 
                       wirss_rel_up_ordinary$wirs()[ , 8], 
                       wirss_rel_down_ordinary$wirs()[ , 8])
+        ncols <- dim(data)[2]
+        col <- c("black", plasma(ncols))
         plot(data[, 1], 
              xlab = "L\u00F6ptid", 
              ylab = "Nollkupongr\u00E4nta", 
              type = "o", 
              main = "Diskonteringsr\u00E4ntekurvor", 
              ylim = 1.10*c(min(data), max(data)),
-             pch = 0)
-        lapply(1:4, function(x) {lines(data[ , x+1], type = "o", col = wes_palette("Zissou1", 4)[x], pch = x)})
+             pch = 1)
+        lapply(2:ncols, function(x) {lines(data[ , x], type = "o", col = col[x], pch = x)})
         legend("topleft", 
                legend = c("Tjänstepensionskurvan", 
                           "Absolut räntehöjningschock",
@@ -473,7 +494,7 @@ server <- function(input, output, session) {
                col = col,
                bty = "n",
                lty = 1,
-               pch = 0:4,
+               pch = 1:ncols,
                bg = "white",
                inset = 0.01
         )
@@ -481,22 +502,23 @@ server <- function(input, output, session) {
       })
       
       output$zcr_curve_all_temp <- renderPlot({
-        req(input$swaprate, input$maximum_maturity_temp, input$credit_risk_adjustment_temp, input$ufr_temp)
+        req(input$swaprate, input$maximum_maturity_temp, input$shift_temp, input$ufr_temp)
         par(bg = NA)
-        col <- c("black", wes_palette("Zissou1", 4))
         data <- cbind(wirss_identity_temp$wirs()[ , 8], 
                       wirss_abs_up_temp$wirs()[ , 8], 
                       wirss_abs_down_temp$wirs()[ , 8], 
                       wirss_rel_up_temp$wirs()[ , 8], 
                       wirss_rel_down_temp$wirs()[ , 8])
+        ncols <- dim(data)[2]
+        col <- c("black", plasma(ncols))
         plot(data[, 1], 
              xlab = "L\u00F6ptid", 
              ylab = "Nollkupongr\u00E4nta", 
              type = "o", 
              main = "Diskonteringsr\u00E4ntekurvor", 
              ylim = 1.10*c(min(data), max(data)),
-             pch = 0)
-        lapply(1:4, function(x) {lines(data[ , x+1], type = "o", col = wes_palette("Zissou1", 4)[x], pch = x)})
+             pch = 1)
+        lapply(2:ncols, function(x) {lines(data[ , x], type = "o", col = col[x], pch = x)})
         legend("topleft", 
                legend = c("Tjänstepensionskurvan", 
                           "Absolut räntehöjningschock",
@@ -507,7 +529,7 @@ server <- function(input, output, session) {
                col = col,
                bty = "n",
                lty = 1,
-               pch = 0:4,
+               pch = 1:ncols,
                bg = "white",
                inset = 0.01
         )
@@ -517,11 +539,13 @@ server <- function(input, output, session) {
       # Data frames
       zeroCouponRatesPerFFFS <- reactive({
         datafr_FFFS_2013 <- data.frame(wirss_no_negative_2013$wirs()[ , 8], 
+                                       wirss_other_2013$wirs()[ , 8],
                                        wirss_abs_down_100_2013$wirs()[ , 8],
                                        wirss_abs_up_100_2013$wirs()[ , 8], 
                                        wirss_abs_down_50_2013$wirs()[ , 8],  
                                        wirss_abs_up_50_2013$wirs()[ , 8])
         names(datafr_FFFS_2013) <- c("Tjänstepensionskurvan", 
+                                     "Annan Försäkring",
                                      "Stressad kurva, nedåt 100bp", 
                                      "Stressad kurva, uppåt 100bp",
                                      "Stressad kurva, nedåt 50bp",
@@ -555,67 +579,197 @@ server <- function(input, output, session) {
       # Downloads
       output$downloadZeroCouponRatesPerFFFS <- downloadHandler(
         filename = function() {
-          paste("Diskonteringsräntekurvor för publicering", ".xlsx", sep = "")
+          paste("Diskonteringsräntekurvor", ".xlsx", sep = "")
         },
         content = function(file) {
-          xlsx::write.xlsx(zeroCouponRatesPerFFFS()$datafr_FFFS_2013, 
+          wb <- openxlsx::loadWorkbook("./data/template.xlsx")
+          openxlsx::writeData(wb, 
+                              sheet = "FFFS 2013 23",
+                              x = zeroCouponRatesPerFFFS()$datafr_FFFS_2013,
+                              startCol = 2,
+                              startRow = 9,
+                              colNames = FALSE
+          )
+          openxlsx::writeData(wb, 
+                              sheet = "FFFS 2019 21 ordinarie",
+                              x = zeroCouponRatesPerFFFS()$datafr_FFFS_2019_ordinary,
+                              startCol = 2,
+                              startRow = 9,
+                              colNames = FALSE
+          )
+          openxlsx::writeData(wb, 
+                              sheet = "FFFS 2019 21 tillfällig",
+                              x = zeroCouponRatesPerFFFS()$datafr_FFFS_2019_temp,
+                              startCol = 2,
+                              startRow = 9,
+                              colNames = FALSE
+          )
+          # Datum
+          openxlsx::writeData(wb, 
+                              sheet = "FFFS 2013 23",
+                              x = matrix(as.character(input$drc_date), nrow = 1, ncol = 6),
+                              startCol = 2,
+                              startRow = 8,
+                              colNames = FALSE
+          )
+          openxlsx::writeData(wb, 
+                              sheet = "FFFS 2019 21 ordinarie",
+                              x = matrix(as.character(input$drc_date), nrow = 1, ncol = 5),
+                              startCol = 2,
+                              startRow = 8,
+                              colNames = FALSE
+          )
+          openxlsx::writeData(wb, 
+                              sheet = "FFFS 2019 21 tillfällig",
+                              x = matrix(as.character(input$drc_date), nrow = 1, ncol = 5),
+                              startCol = 2,
+                              startRow = 8,
+                              colNames = FALSE
+          )
+          openxlsx::saveWorkbook(wb, file = "./data/temporary.xlsx", overwrite = TRUE)
+          file.copy(from = "./data/temporary.xlsx", to = file)
+        }
+      )
+      
+      output$downloadDatasetWeightedInterestRateSwap_FFFS_2013 <- downloadHandler(
+        filename = function() {
+          paste("FFFS_2013_23", ".xlsx", sep = "")
+        },
+        content = function(file) {
+          xlsx::write.xlsx(wirss_no_negative_2013$wirs(), 
                            file, 
-                           sheetName = "FFFS 2013 23", 
+                           sheetName = "Tjänstepensionskurvan", 
                            col.names = TRUE, 
                            row.names = FALSE,
                            showNA = FALSE,
                            append = FALSE)
-          xlsx::write.xlsx(zeroCouponRatesPerFFFS()$datafr_FFFS_2019_ordinary, 
+          xlsx::write.xlsx(wirss_other_2013$wirs(), 
                            file, 
-                           sheetName = "FFFS 2019 21 Ordinarie", 
+                           sheetName = "Annan Försäkring", 
                            col.names = TRUE, 
-                           row.names = FALSE,
+                           row.names = FALSE, 
                            showNA = FALSE,
                            append = TRUE)
-          xlsx::write.xlsx(zeroCouponRatesPerFFFS()$datafr_FFFS_2019_temp, 
+          xlsx::write.xlsx(wirss_abs_up_100_2013$wirs(), 
                            file, 
-                           sheetName = "FFFS 2019 21 Tillfällig", 
+                           sheetName = "Stress Absolut upp 100bp", 
                            col.names = TRUE, 
-                           row.names = FALSE,
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_abs_down_100_2013$wirs(), 
+                           file, 
+                           sheetName = "Stress Absolut ned 100bp", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_abs_up_50_2013$wirs(), 
+                           file, 
+                           sheetName = "Stress Absolut upp 50bp", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_abs_down_50_2013$wirs(), 
+                           file, 
+                           sheetName = "Stress Absolut ned 50bp", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_identity_2013$wirs(), 
+                           file, 
+                           sheetName = "Otransformerad", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
                            showNA = FALSE,
                            append = TRUE)
         }
       )
       
-      output$downloadDatasetWeightedInterestRateSwap <- downloadHandler(
+      output$downloadDatasetWeightedInterestRateSwap_FFFS_2019_ordinary <- downloadHandler(
         filename = function() {
-          paste("All_data", ".xlsx", sep = "")
+          paste("FFFS_2019_21_Ordinarie", ".xlsx", sep = "")
         },
         content = function(file) {
           xlsx::write.xlsx(wirss_identity_ordinary$wirs(), 
                            file, 
-                           sheetName = "Otransformerad", 
+                           sheetName = "Tjänstepensionskurvan", 
                            col.names = TRUE, 
-                           row.names = FALSE, 
+                           row.names = FALSE,
+                           showNA = FALSE,
                            append = FALSE)
           xlsx::write.xlsx(wirss_abs_up_ordinary$wirs(), 
                            file, 
                            sheetName = "Stress Absolut upp", 
                            col.names = TRUE, 
                            row.names = FALSE, 
+                           showNA = FALSE,
                            append = TRUE)
           xlsx::write.xlsx(wirss_abs_down_ordinary$wirs(), 
                            file, 
                            sheetName = "Stress Absolut ned", 
                            col.names = TRUE, 
                            row.names = FALSE, 
+                           showNA = FALSE,
                            append = TRUE)
           xlsx::write.xlsx(wirss_rel_up_ordinary$wirs(), 
                            file, 
                            sheetName = "Stress Relativ upp", 
                            col.names = TRUE, 
                            row.names = FALSE, 
+                           showNA = FALSE,
                            append = TRUE)
           xlsx::write.xlsx(wirss_rel_down_ordinary$wirs(), 
                            file, 
                            sheetName = "Stress Relativ ned", 
                            col.names = TRUE, 
                            row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+        }
+      )
+      
+      output$downloadDatasetWeightedInterestRateSwap_FFFS_2019_temp <- downloadHandler(
+        filename = function() {
+          paste("FFFS_2019_21_Tillfällig", ".xlsx", sep = "")
+        },
+        content = function(file) {
+          xlsx::write.xlsx(wirss_identity_temp$wirs(), 
+                           file, 
+                           sheetName = "Tjänstepensionskurvan", 
+                           col.names = TRUE, 
+                           row.names = FALSE,
+                           showNA = FALSE,
+                           append = FALSE)
+          xlsx::write.xlsx(wirss_abs_up_temp$wirs(), 
+                           file, 
+                           sheetName = "Stress Absolut upp", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_abs_down_temp$wirs(), 
+                           file, 
+                           sheetName = "Stress Absolut ned", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_rel_up_temp$wirs(), 
+                           file, 
+                           sheetName = "Stress Relativ upp", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
+                           append = TRUE)
+          xlsx::write.xlsx(wirss_rel_down_temp$wirs(), 
+                           file, 
+                           sheetName = "Stress Relativ ned", 
+                           col.names = TRUE, 
+                           row.names = FALSE, 
+                           showNA = FALSE,
                            append = TRUE)
         }
       )
