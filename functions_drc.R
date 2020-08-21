@@ -70,7 +70,7 @@ weightedForwardRate <- function(fwdr, w, T, UFR = 0) {
 logLinearDFRelationshipClosure <- function(t, df) {
   # exponerade log-linjära relationer mellan diskonteringsfaktorer.
   # t är en 3-dimensionell vektor (t1, t2, t3) med t1 < t2 < t3.
-  # denna funktion returnerar en funktion (closure)
+  # denna funktion returnerar en funktion (closure) som beror av x
   d <- t[3]-t[1]
   f <- function(x) {
     exp(((d-(t[2]-t[1]))/d)*log(df[t[1]])+((d-(t[3]-t[2]))/d)*log(1/((1+x)^t[3])))
