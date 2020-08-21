@@ -24,7 +24,7 @@ source("module_drc.R")
 
 # User interface
 ui <- dashboardPagePlus(
-  skin = "black-light",
+  skin = "black",
   sidebar_fullCollapse = TRUE, 
   useShinyjs(),
   header = dashboardHeaderPlus(
@@ -47,28 +47,23 @@ ui <- dashboardPagePlus(
       tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap2.css")
     ),
     withMathJax(),
-    setShadow("card"),
     tabItems(
       tabItem(tabName = "tab_module_drc",
               fluidRow(
                 gradientBox(
                   title = "Diskonteringsräntekurvor för Solvens I",
-                  status = "primary",
+                  status = "info",
                   icon = "fa fa-th",
                   gradientColor = "maroon", 
                   boxToolSize = "xs", 
                   width = 12,
                   collapsible = TRUE,
                   closable = TRUE,
-                  tags$p("Detta program beräknar diskonteringsräntekurvor både från idag och framåt i tiden,
-                    för exempelvis användning till att beräkna värdet av framtida balansräkningar. Kurvorna kan enkelt skrivas till 
-                    Excel i tabellformat.\n
-                    Indata är marknadsnoterade swapräntor."),
-                  tags$p("Finansinspektionen publicerar dessa beräkningar månadsvis.")
+                  includeMarkdown("markdown/introduktion.md")
                 ),
                 boxPlus(
                   title = "Information om diskonteringsräntekurvor som publiceras", 
-                  status = "primary",
+                  status = "info",
                   width = 12,
                   collapsible = TRUE,
                   collapsed = TRUE,
@@ -77,7 +72,7 @@ ui <- dashboardPagePlus(
                 ),
                 boxPlus(
                   title = "Lathund", 
-                  status = "primary",
+                  status = "info",
                   width = 12,
                   collapsible = TRUE,
                   collapsed = FALSE,
@@ -86,39 +81,35 @@ ui <- dashboardPagePlus(
                 ),
                 boxPlus(
                   title = "Beräkningsmetodik", 
-                  status = "primary",
+                  status = "info",
                   width = 12,
                   collapsible = TRUE,
                   collapsed = TRUE,
                   closable = FALSE,
                   includeMarkdown("markdown/math_theory.md")
-                )
-              ),
-              fluidRow(
-                box(
+                ),
+                boxPlus(
                   title = "Marknadsnoteringar för swapräntor", 
                   status = "warning",
                   width = 12,
                   collapsible = TRUE,
-                  column(3,
-                         dateInput("drc_date", label = "Datum", value = Sys.Date(), language = "sv"),
-                         tags$p("Välj det datum som gäller för marknadsnoteringarna: den sista vardagen i föregående månad under förutsättning att marknaden var öppen. Valt datum skrivs automatiskt till alla flikar i excelfilen för publicering som laddas ned i menyn till höger.")
-                  ),
-                  column(9,
-                         textInput("swaprate", "Marknadsnoteringar", "0.00075, 0.00048, 0.00045, 0.00055, 0.00075, 0.001, 0.00133, 0.00168, 0.00208, 0.00253, NA, 0.00333, NA, NA, 0.0042, NA, NA, NA, NA, 0.005", 
-                                   width = "100%"),
-                         tags$p("Skriv in marknadsnoteringar för swapräntor. De hämtas m.h.a. Thomson Reuters Datastream i Excel (eller Eikon). NA står för Not Available. NA behöver skrivas in för noteringar som saknas upp till den sista kända marknadsnoterade swapräntan. Den
-                     första och den sista koordinaten i n-tupeln ovan får inte vara NA eftersom diskonteringsfaktorer beräknas rekursivt mellan kända noteringar."),
-                         tags$p("Observera att decimalpunkt används för dessa tal men inte för andra tal i programmet.")
+                  closable = FALSE,
+                  fluidPage(
+                    fluidRow(
+                      column(3, dateInput("drc_date", label = "Datum", value = Sys.Date(), language = "sv")),
+                      column(9, textInput("swaprate", "Marknadsnoteringar", "0.00075, 0.00048, 0.00045, 0.00055, 0.00075, 0.001, 0.00133, 0.00168, 0.00208, 0.00253, NA, 0.00333, NA, NA, 0.0042, NA, NA, NA, NA, 0.005", width = "100%"))
+                    ),
+                    fluidRow(
+                      includeMarkdown("markdown/helptext_input.md")
+                    )
                   )
-                )
-              ),
-              fluidRow(
-                box(
+                ),
+                boxPlus(
                   title = "Figurer",
-                  status = "info",
+                  status = "primary",
                   width = 12,
                   collapsible = TRUE,
+                  closable = FALSE,
                   mainPanel(
                     tabsetPanel(
                       type = "tabs",
@@ -128,90 +119,53 @@ ui <- dashboardPagePlus(
                     ),
                     width = 12
                   )
-                )
-              ),
-              fluidRow(
-                box(
+                ),
+                boxPlus(
                   title = "Tabeller",
                   status = "primary",
                   width = 12,
                   collapsible = TRUE,
+                  closable = FALSE,
                   mainPanel(
                     tabsetPanel(
                       type = "tabs",
                       tabPanel("FFFS 2013:23",
                                tags$br(),
-                               mainPanel(
-                                 tabsetPanel(
-                                   type = "tabs",
-                                   tabPanel("Tjänstepensionskurvan", 
-                                            weightedInterestRateSwapUI("no_negative_2013", 
-                                                                       selected = list(stress_type = "no_negative"))),
-                                   tabPanel("Annan Försäkring", 
-                                            weightedInterestRateSwapUI("other_2013", 
-                                                                       selected = list(stress_type = "no_negative"))),
-                                   tabPanel("Räntehöjningschock 100bps (absolut)", 
-                                            weightedInterestRateSwapUI("abs_up_100_2013", 
-                                                                       selected = list(stress_type = "absolute_up_100bps"))),
-                                   tabPanel("Räntesänkningschock 100bps (absolut)", 
-                                            weightedInterestRateSwapUI("abs_down_100_2013", 
-                                                                       selected = list(stress_type = "absolute_down_100bps"))),
-                                   tabPanel("Räntehöjningschock 50 bps (absolut)", 
-                                            weightedInterestRateSwapUI("abs_up_50_2013", 
-                                                                       selected = list(stress_type = "absolute_up_50bps"))),
-                                   tabPanel("Räntesänkningschock 50 bps (absolut)", 
-                                            weightedInterestRateSwapUI("abs_down_50_2013",
-                                                                       selected = list(stress_type = "absolute_down_50bps"))),
-                                   tabPanel("Otransformerad", 
-                                            weightedInterestRateSwapUI("identity_2013", 
-                                                                       selected = list(stress_type = "identity")))
-                                 ),
-                                 width = 12
-                               )
+                               tabsetPanel(
+                                 type = "pills",
+                                 tabPanel("Tjänstepensionskurvan", weightedInterestRateSwapUI("no_negative_2013", selected = list(stress_type = "no_negative"))),
+                                 tabPanel("Annan Försäkring", weightedInterestRateSwapUI("other_2013", selected = list(stress_type = "no_negative"))),
+                                 tabPanel("Räntehöjningschock 100bps", weightedInterestRateSwapUI("abs_up_100_2013", selected = list(stress_type = "absolute_up_100bps"))),
+                                 tabPanel("Räntesänkningschock 100bps", weightedInterestRateSwapUI("abs_down_100_2013", selected = list(stress_type = "absolute_down_100bps"))),
+                                 tabPanel("Räntehöjningschock 50 bps", weightedInterestRateSwapUI("abs_up_50_2013", selected = list(stress_type = "absolute_up_50bps"))),
+                                 tabPanel("Räntesänkningschock 50 bps", weightedInterestRateSwapUI("abs_down_50_2013", selected = list(stress_type = "absolute_down_50bps"))),
+                                 tabPanel("Otransformerad", weightedInterestRateSwapUI("identity_2013", selected = list(stress_type = "identity")))
+                               ),
+                               width = 12
                       ),
                       tabPanel("FFFS 2019:21 Ordinarie", 
                                tags$br(),
-                               mainPanel(
-                                 tabsetPanel(
-                                   type = "tabs",
-                                   tabPanel("Tjänstepensionskurvan", weightedInterestRateSwapUI("identity_ordinary")),
-                                   tabPanel("Räntehöjningschock (absolut)", 
-                                            weightedInterestRateSwapUI("abs_up_ordinary", 
-                                                                       selected = list(stress_type = "absolute_up"))),
-                                   tabPanel("Räntesänkningschock (absolut)", 
-                                            weightedInterestRateSwapUI("abs_down_ordinary", 
-                                                                       selected = list(stress_type = "absolute_down"))),
-                                   tabPanel("Räntehöjningschock (relativ)", 
-                                            weightedInterestRateSwapUI("rel_up_ordinary", 
-                                                                       selected = list(stress_type = "relative_up"))),
-                                   tabPanel("Räntesänkningschock (relativ)", 
-                                            weightedInterestRateSwapUI("rel_down_ordinary",
-                                                                       selected = list(stress_type = "relative_down")))
-                                 ),
-                                 width = 12
-                               )
+                               tabsetPanel(
+                                 type = "pills",
+                                 tabPanel("Tjänstepensionskurvan", weightedInterestRateSwapUI("identity_ordinary")),
+                                 tabPanel("Räntehöjningschock (absolut)", weightedInterestRateSwapUI("abs_up_ordinary", selected = list(stress_type = "absolute_up"))),
+                                 tabPanel("Räntesänkningschock (absolut)", weightedInterestRateSwapUI("abs_down_ordinary", selected = list(stress_type = "absolute_down"))),
+                                 tabPanel("Räntehöjningschock (relativ)", weightedInterestRateSwapUI("rel_up_ordinary", selected = list(stress_type = "relative_up"))),
+                                 tabPanel("Räntesänkningschock (relativ)", weightedInterestRateSwapUI("rel_down_ordinary", selected = list(stress_type = "relative_down")))
+                               ),
+                               width = 12
                       ),
                       tabPanel("FFFS 2019:21 Tillfällig",
                                tags$br(),
-                               mainPanel(
-                                 tabsetPanel(
-                                   type = "tabs",
-                                   tabPanel("Tjänstepensionskurvan", weightedInterestRateSwapUI("identity_temp")),
-                                   tabPanel("Räntehöjningschock (absolut)", 
-                                            weightedInterestRateSwapUI("abs_up_temp", 
-                                                                       selected = list(stress_type = "absolute_up"))),
-                                   tabPanel("Räntesänkningschock (absolut)", 
-                                            weightedInterestRateSwapUI("abs_down_temp", 
-                                                                       selected = list(stress_type = "absolute_down"))),
-                                   tabPanel("Räntehöjningschock (relativ)", 
-                                            weightedInterestRateSwapUI("rel_up_temp", 
-                                                                       selected = list(stress_type = "relative_up"))),
-                                   tabPanel("Räntesänkningschock (relativ)", 
-                                            weightedInterestRateSwapUI("rel_down_temp",
-                                                                       selected = list(stress_type = "relative_down")))
-                                 ),
-                                 width = 12
-                               )
+                               tabsetPanel(
+                                 type = "pills",
+                                 tabPanel("Tjänstepensionskurvan", weightedInterestRateSwapUI("identity_temp")),
+                                 tabPanel("Räntehöjningschock (absolut)", weightedInterestRateSwapUI("abs_up_temp", selected = list(stress_type = "absolute_up"))),
+                                 tabPanel("Räntesänkningschock (absolut)", weightedInterestRateSwapUI("abs_down_temp", selected = list(stress_type = "absolute_down"))),
+                                 tabPanel("Räntehöjningschock (relativ)", weightedInterestRateSwapUI("rel_up_temp", selected = list(stress_type = "relative_up"))),
+                                 tabPanel("Räntesänkningschock (relativ)", weightedInterestRateSwapUI("rel_down_temp", selected = list(stress_type = "relative_down")))
+                               ),
+                               width = 12
                       )
                     ),
                     width = 12
@@ -234,7 +188,8 @@ ui <- dashboardPagePlus(
       tags$script(HTML(
         "$(\".control-sidebar\").on('webkitTransitionEnd otransitionend oTransitionEnd msTransitionEnd transitionend', function() { $(window).trigger(\"resize\"); } );"
       )),
-      uiOutput("right_side_bar")
+      uiOutput("right_side_bar"),
+      #weightedInterestRateSwap_ui_controls("test")
     ),
     rightSidebarTabContent(
       id = "downloads",
@@ -250,7 +205,7 @@ ui <- dashboardPagePlus(
   ),
   footer = dashboardFooter(
     left_text = "Version 0.1",
-    right_text = "Senast uppdaterad: Mars 2020"
+    right_text = "Senast uppdaterad: Maj 2020"
   )
 )
 
@@ -300,6 +255,14 @@ server <- function(input, output, session) {
       
       # Modules
       # Should construct nested modules rather than the following when time permits...
+      
+      # test <- callModule(weightedInterestRateSwapServer, 
+      #                    "test", 
+      #                    swaprate = reactive({req(input$swaprate)}), 
+      #                    maximum_maturity = reactive({req(input$maximum_maturity_test)}), 
+      #                    shift = reactive({req(input$shift_test)}),
+      #                    ufr = reactive({req(input$ufr_test)})
+      # )
       
       # 2013:23
       wirss_identity_2013 <- callModule(weightedInterestRateSwapServer, 
@@ -777,11 +740,13 @@ server <- function(input, output, session) {
     }
     if (req(input$left_side_bar) == "tab_module_solvencymod"){
       shinyjs::removeClass(selector = "body", class = "control-sidebar-open")
-      output$right_side_bar <- renderUI({ div() })
+      output$right_side_bar <- renderUI({div()})
+      output$right_side_bar_downloads <- renderUI({div()})
     }
     if (req(input$left_side_bar) == "tab_module_esg"){
       shinyjs::removeClass(selector = "body", class = "control-sidebar-open")
-      output$right_side_bar <- renderUI({ div() })
+      output$right_side_bar <- renderUI({div()})
+      output$right_side_bar_downloads <- renderUI({div()})
     }
   })
   
